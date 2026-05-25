@@ -2,9 +2,9 @@
   <img src="assets/logo.png" alt="NAVA" width="180">
 </p>
 
-# NAVA — Joint Audio-Video Generation
+# NAVA — Native Audio-Visual Alignment for Joint Generation
 
-NAVA is a joint audio-video generation model built on the Wan2.2 video generation framework. It employs an MMDiT (Multi-Modal Diffusion Transformer) architecture with flow matching to simultaneously generate synchronized video and audio from text or image inputs.
+NAVA is a Native Audio-Visual Alignment framework that formulates joint audio-video generation as *context-conditioned native audio-visual alignment*. NAVA first establishes audio-video correspondence in a dedicated alignment space and then applies context as external conditioning to guide the aligned representation. It is instantiated with an Align-then-Fuse MMDiT architecture, which progressively bridges modality-aware alignment and unified audio-video denoising. To support controllable speech generation, NAVA further introduces Timbre-in-Context Conditioning, which binds reference timbre cues to corresponding speech spans through the context pathway. With only **6.3B** parameters, NAVA achieves superior audio-visual synchronization and video quality, competitive audio quality, and substantially improved reference-timbre controllability.
 
 ## Demo
 
