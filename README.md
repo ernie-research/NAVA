@@ -48,16 +48,23 @@ NAVA uses a **30-layer Align-then-Fuse MMDiT** backbone with flow matching:
 - **Timbre-in-Context Conditioning**: reference-WAV speaker embeddings are bound to `<S>...<E>` speech spans through the context pathway, enabling per-speaker timbre control without entangling identity into the alignment space.
 - **RoPE**: 3D rotary embeddings for video (T + H + W), 1D for audio; **AdaLN-Zero** timestep modulation per block.
 
-### Components
+## Evaluation
 
-| Component | Description | Parameters |
-|-----------|-------------|-----------|
-| **WanAVModel (Backbone)** | MMDiT with joint audio-video attention | ~6.3B (`NAVA_6B.json`) |
-| **Video VAE** | Wan2.2 Causal 3D ConvNet, 16x16x4 compression, 48 latent channels | 2.7 GB |
-| **Audio VAE** | LTX Audio VAE, 128 latent channels, 25 tokens/sec | 348 MB |
-| **BigVGAN Vocoder** | Decodes audio latents to waveforms | 429 MB |
-| **T5 Text Encoder** | umt5-xxl, encodes prompts to 4096-dim embeddings | 11 GB |
-| **ReDimNet** | Speaker embedding extraction, 192-dim | ~50 MB |
+### General Capability on VerseBench
+
+NAVA achieves the best AV synchronization (Sync-C / Sync-D / IB) and video quality with the smallest parameter budget.
+
+<p align="center">
+  <img src="assets/verse-bench.png" alt="VerseBench Results" width="100%">
+</p>
+
+### Timbre-Control Speech Performance
+
+Audio-only models are listed as *reference* only — they are dedicated speech systems and not directly comparable. Among joint audio-video models, NAVA delivers speech quality close to dedicated audio-only systems.
+
+<p align="center">
+  <img src="assets/seedtts-eval.png" alt="SeedTTS-Eval Results" width="100%">
+</p>
 
 ## Weight Preparation
 
@@ -94,6 +101,36 @@ params/
         ├── v1-16.pth                              (655 MB, MMAudio ToD VAE)
         └── best_netG.pt                           (429 MB, BigVGAN Vocoder)
 ```
+
+### 4. LTX-2.3-VAE (Audio VAE code dependency)
+
+The Audio VAE and BigVGAN vocoder model definitions come from the [LTX-2](https://github.com/Lightricks/LTX-Video) repository. Clone it alongside NAVA:
+
+```bash
+git clone https://github.com/Lightricks/LTX-Video.git LTX-2
+```
+
+Expected directory layout:
+
+```
+your_workspace/
+├── NAVA/
+└── LTX-2/
+    └── packages/
+        └── ltx-core/
+            └── src/        ← this path is auto-detected by NAVA
+```
+
+NAVA looks for `ltx-core/src` at `../../audio_server_ltx/LTX-2/packages/ltx-core/src` relative to `nava_src/vae/`. If your layout differs, create a symlink:
+
+```bash
+# From NAVA project root:
+ln -s /path/to/LTX-2 audio_server_ltx/LTX-2
+```
+
+### 5. ReDimNet Speaker Embedder
+
+Downloaded automatically via `torch.hub` on first run — no manual setup needed.
 
 ## Installation
 

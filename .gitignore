@@ -88,7 +88,6 @@ configs_backup/
 # ignore the bulky media + speaker wavs.
 # ============================================================
 demo/videos/
-demo/nava_demo_*.mp4
 demo/assets/
 demo/spks/
 demo/server.log
