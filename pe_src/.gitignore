@@ -1,0 +1,5 @@
+# Qwen model weights
+Qwen*/
+__pycache__/
+server.log
+server.pid

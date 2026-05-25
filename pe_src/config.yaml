@@ -1,0 +1,24 @@
+# Qwen3-4B-Thinking-2507 Rewriter Configuration
+
+server:
+  model: "./Qwen3-4B-Thinking-2507"
+  port: 8000
+  host: "0.0.0.0"
+  tensor_parallel_size: 1
+  max_model_len: 4096
+  gpu_memory_utilization: 0.9
+  quantization: null  # set to "awq" if using quantized model
+  extra_args: ""      # additional vllm args
+
+rewrite:
+  api_base: "http://localhost:8000/v1/chat/completions"
+  model_name: "./Qwen3-4B-Thinking-2507"
+  concurrency: 32
+  temperature: 0.3
+  top_p: 0.75
+  top_k: 20
+  repetition_penalty: 1.05
+  max_tokens: 4096
+  timeout: 60
+  retry: 3
+  system_prompt_file: "prompts/rewrite_template.txt"

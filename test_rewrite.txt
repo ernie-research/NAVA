@@ -1,0 +1,22 @@
+超人坐在咖啡馆里 满脸愁容 说道<S>I really need to drink this coffee<E>
+batman sit on the sofa, says <S>My super power is rich<E>
+1. Spider-Man stands on a crowded subway, looking exhausted, says <S>I save the city, but I still can't catch my train on time<E>
+2. Wonder Woman sits in a quiet library, frowning at a stack of books, says <S>Even truth cannot help me finish all this reading tonight<E>
+3. Iron Man leans against a kitchen counter, staring at a broken toaster, says <S>I can build a suit that flies, but this machine defeats me<E>
+4. Hulk sits in a tiny office chair, trying to stay calm, says <S>My biggest battle today is this weekly meeting<E>
+5. Thor stands in a convenience store holding an umbrella, looking disappointed, says <S>I control thunder, yet the weather still ruins my mood<E>
+6. Captain America waits in a long line at the bank, arms crossed, says <S>I fought for freedom, not for paperwork<E>
+7. Black Widow sits at a hair salon, watching the mirror nervously, says <S>Espionage is easier than trusting a new hairstylist<E>
+8. Doctor Strange sits in traffic inside a small car, rubbing his forehead, says <S>I can bend reality, but not this rush hour<E>
+9. Flash sits in a dentist chair, looking worried, says <S>I can outrun anything except this appointment<E>
+10. Aquaman stands in a pet shop beside a fish tank, looking awkward, says <S>It's strange being watched by distant relatives<E>
+11. Green Lantern sits in a dark movie theater with spilled popcorn, says <S>My ring creates anything, except a clean floor<E>
+12. Deadpool lounges in a grocery cart, grinning at the cashier, says <S>This is what peak tactical transportation looks like<E>
+13. Wolverine sits in a nail salon, staring at his hands, says <S>Self-care gets complicated when your claws come out<E>
+14. Catwoman relaxes on a rooftop picnic blanket at sunset, smiling faintly, says <S>Sometimes stealing a quiet evening is enough<E>
+15. Loki sits alone in a cheap motel room, holding a paper map, says <S>God of mischief, defeated by bad directions again<E>
+16. Magneto stands in a cluttered garage full of tools, shaking his head, says <S>At least someone here listens when I move metal<E>
+17. Black Panther sits in an airport waiting area, elegantly frustrated, says <S>A king should not have to hear delayed boarding announcements<E>
+18. Harley Quinn sits in a classroom, spinning a pencil with a bored expression, says <S>Chaos is fun, but homework is just cruel<E>
+19. Superman stands in a laundromat holding a basket of clothes, looking helpless, says <S>Saving the world is easier than sorting whites and colors<E>
+20. Batman sits alone in a diner booth late at night, staring at a slice of cake, says <S>Justice never prepared me for emotional desserts<E>

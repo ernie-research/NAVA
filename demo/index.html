@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAVA · Native Audio-Visual Alignment for Generation</title>
+<meta name="description" content="NAVA: Native Audio-Visual Alignment for Generation — an Align-then-Fuse MMDiT framework for joint audio-video generation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FBFBF9;
+  --paper-2:#F4F3EE;
+  --line:#E5E3DA;
+  --line-2:#EFEDE5;
+  --ink:#111319;
+  --text:#1A1D26;
+  --text-2:#525663;
+  --text-3:#878B97;
+  --brand:#2A4FB8;
+  --brand-soft:#EAF0FB;
+  --radius:10px;
+  --maxw:1120px;
+  --read:720px;
+  --shadow-1:0 1px 2px rgba(15,18,40,.04), 0 6px 18px rgba(15,18,40,.05);
+  --shadow-2:0 2px 8px rgba(15,18,40,.06), 0 18px 36px rgba(15,18,40,.07);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:16.5px;
+  color:var(--text);
+  background:var(--paper);
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  font-feature-settings:"ss01","cv11","tnum" 0;
+}
+img,video{max-width:100%;display:block}
+a{color:var(--brand);text-decoration:none;transition:color .15s}
+a:hover{color:#1B3A8F}
+em,i{font-family:'Source Serif 4',Georgia,serif;font-style:italic;font-weight:400}
+
+/* ===== top nav ===== */
+.nav{
+  position:sticky;top:0;z-index:50;
+  backdrop-filter:saturate(180%) blur(14px);
+  -webkit-backdrop-filter:saturate(180%) blur(14px);
+  background:rgba(251,251,249,.82);
+  border-bottom:1px solid rgba(0,0,0,.06);
+}
+.nav-inner{
+  max-width:var(--maxw);margin:0 auto;
+  padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.nav-brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:.01em;color:var(--ink)}
+.nav-brand .logo-mark{
+  width:24px;height:24px;border-radius:6px;
+  background:var(--ink);
+  display:grid;place-items:center;
+  color:#fff;font-weight:600;font-size:13px;line-height:1;
+}
+.nav-links{display:flex;gap:26px}
+.nav-links a{
+  color:var(--text-2);font-size:14px;font-weight:500;
+  position:relative;padding:4px 0;
+}
+.nav-links a:hover{color:var(--ink)}
+
+/* ===== hero (light, refined) ===== */
+.hero{
+  position:relative;overflow:hidden;
+  background:var(--paper);
+  padding:72px 28px 80px;
+  text-align:center;
+  border-bottom:1px solid var(--line);
+}
+.hero::before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(800px 460px at 78% -10%,rgba(126,75,217,.08),transparent 65%),
+    radial-gradient(700px 420px at 12% 8%,rgba(59,111,224,.07),transparent 65%);
+  pointer-events:none;
+}
+.hero::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(15,18,40,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(15,18,40,.04) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(ellipse 70% 60% at center,#000 0%,transparent 75%);
+  -webkit-mask-image:radial-gradient(ellipse 70% 60% at center,#000 0%,transparent 75%);
+  opacity:.7;
+}
+.hero-inner{position:relative;max-width:960px;margin:0 auto}
+
+.hero-logo{
+  width:160px;height:auto;margin:0 auto 28px;
+  display:block;
+  filter:drop-shadow(0 8px 24px rgba(59,111,224,.18));
+}
+
+.brand-mark{
+  font-family:'Fraunces',Georgia,serif;
+  font-weight:600;
+  font-size:clamp(3.2rem,8vw,5.6rem);
+  line-height:1;letter-spacing:.18em;
+  margin-bottom:18px;
+  background:linear-gradient(135deg,#1F4A8C 0%,#3B6FE0 45%,#7E4BD9 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  text-indent:.18em; /* visually center given trailing letter-spacing */
+  font-variation-settings:"opsz" 144,"SOFT" 50;
+}
+
+.venue{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;
+  padding:5px 13px;border:1px solid var(--line);border-radius:999px;
+  color:var(--text-2);background:#fff;
+  margin-bottom:24px;font-weight:500;
+}
+.venue .dot{width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#3B6FE0,#7E4BD9)}
+
+.hero h1{
+  color:var(--ink);
+  font-weight:700;
+  font-size:clamp(1.85rem,4vw,2.7rem);
+  line-height:1.16;letter-spacing:-.022em;
+  margin:0 auto 22px;
+}
+@media (max-width:760px){
+  .hero h1{font-size:clamp(1.55rem,5.4vw,1.95rem);line-height:1.2}
+}
+
+.hero .sub{
+  font-size:1.02rem;color:var(--text-2);max-width:600px;margin:0 auto 30px;line-height:1.65;
+}
+.hero .sub b{color:var(--ink);font-weight:600}
+.authors{
+  font-size:.98rem;color:var(--text);margin-bottom:4px;line-height:1.7;
+}
+.authors sup{color:var(--text-3);font-weight:500;font-size:.78em;margin-left:1px}
+.affiliation{font-size:.9rem;color:var(--text-2);margin-bottom:32px;line-height:1.6}
+.affiliation sup{color:var(--text-3);margin-right:4px}
+.cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:9px 18px;border-radius:8px;
+  font-size:.9rem;font-weight:500;
+  border:1px solid var(--line);
+  background:#fff;color:var(--ink);
+  transition:all .15s ease;
+}
+.btn:hover{border-color:var(--text-3);color:var(--ink);transform:translateY(-1px);box-shadow:var(--shadow-1)}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.primary:hover{background:#000;color:#fff}
+.btn svg{width:15px;height:15px;stroke-width:2}
+
+/* ===== sections ===== */
+section{padding:88px 28px;scroll-margin-top:80px}
+section + section{border-top:1px solid var(--line)}
+.container{max-width:var(--maxw);margin:0 auto}
+.section-tag{
+  font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3);
+  font-weight:600;
+  margin-bottom:14px;
+}
+.section-title{
+  color:var(--ink);
+  font-weight:600;
+  font-size:clamp(1.5rem,2.4vw,1.85rem);
+  line-height:1.25;letter-spacing:-.014em;
+  margin-bottom:36px;
+  max-width:780px;
+}
+
+/* ===== teaser video ===== */
+.teaser{
+  position:relative;border-radius:var(--radius);overflow:hidden;
+  box-shadow:var(--shadow-2);background:#000;border:1px solid var(--line);
+}
+.teaser video{width:100%;display:block}
+
+/* ===== abstract ===== */
+.abstract-wrap{max-width:var(--maxw);margin:0 auto}
+.abstract{
+  font-size:1.02rem;line-height:1.78;color:var(--text);
+  text-align:left;
+}
+.abstract p + p{margin-top:1em}
+.abstract b{color:var(--ink);font-weight:600}
+.abstract .kw{
+  background:linear-gradient(180deg,transparent 62%,rgba(255,213,79,.55) 62%);
+  font-weight:600;color:var(--ink);padding:0 1px;
+}
+/* ===== highlights ===== */
+.highlights{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:16px;
+}
+.highlights .hl-item{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  background:#fff;border:1px solid var(--line);border-radius:14px;
+  padding:18px 32px;font-size:1.05rem;color:var(--ink);font-weight:500;
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+  flex:1 1 calc(33% - 16px);min-width:280px;
+}
+.highlights .hl-icon{font-size:1.4rem;line-height:1}
+.figure{margin:56px auto 0;max-width:1000px}
+.figure img{border-radius:var(--radius);border:1px solid var(--line);background:#fff}
+.figcaption{
+  margin-top:14px;font-size:.9rem;color:var(--text-2);text-align:center;line-height:1.6;
+}
+.figcaption b{color:var(--ink);font-weight:600}
+.figcaption .num{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink);font-weight:600}
+
+/* ===== tables ===== */
+.tbl-title{
+  color:var(--ink);font-weight:600;
+  font-size:1.02rem;margin:48px 0 4px;letter-spacing:-.005em;
+}
+.tbl-title .num{font-family:'Source Serif 4',serif;font-style:italic;font-weight:600;color:var(--text-2);margin-right:6px}
+.tbl-sub{font-size:.9rem;color:var(--text-2);margin-bottom:14px;line-height:1.55}
+.tbl-wrap{
+  overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);
+  background:#fff;
+}
+table{
+  width:100%;border-collapse:collapse;
+  font-variant-numeric:tabular-nums;
+  font-size:.92rem;
+}
+thead th{
+  font-weight:600;color:var(--ink);
+  background:var(--paper-2);
+  text-align:center;
+  padding:11px 14px;
+  border-bottom:1px solid var(--line);
+  font-size:.86rem;letter-spacing:.005em;
+}
+thead tr:first-child th{border-bottom:1px solid var(--line-2)}
+tbody td{
+  padding:12px 14px;text-align:center;
+  border-bottom:1px solid var(--line-2);
+  color:var(--text);
+}
+tbody td u{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;text-decoration-color:var(--text-2);font-weight:500}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--paper-2)}
+tbody tr.ours td{
+  background:linear-gradient(90deg,rgba(59,111,224,.10),rgba(126,75,217,.10));
+  font-weight:600;color:var(--ink);
+}
+tbody tr.ours:hover td{background:linear-gradient(90deg,rgba(59,111,224,.16),rgba(126,75,217,.16))}
+tbody tr.ours td:first-child{position:relative}
+tbody tr.ours td:first-child::before{
+  content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;
+  background:linear-gradient(180deg,#3B6FE0,#7E4BD9);border-radius:2px;
+}
+tbody tr.ref td{
+  color:var(--text-3);
+  background:var(--paper-2);
+  font-style:italic;
+}
+tbody tr.ref:hover td{background:var(--paper-2)}
+.ref-tag{
+  display:inline-block;font-style:normal;font-size:.72rem;font-weight:500;
+  color:var(--text-3);background:#fff;border:1px solid var(--line);
+  padding:1px 7px;border-radius:999px;margin-left:6px;letter-spacing:.02em;
+  vertical-align:1px;
+}
+.legend{
+  margin-top:14px;font-size:.82rem;color:var(--text-3);
+  display:flex;gap:18px;flex-wrap:wrap;
+}
+.legend code{font-family:'JetBrains Mono',monospace;color:var(--text-2);font-size:.85em}
+
+/* ===== showcase ===== */
+.showcase-bar{
+  display:flex;flex-direction:column;align-items:center;
+  gap:16px;margin-bottom:32px;
+}
+.tabs{
+  display:flex;width:100%;
+  justify-content:center;
+  gap:24px;
+  flex-wrap:nowrap;
+}
+.tab-btn{
+  border:none;background:transparent;
+  padding:18px 0;border-radius:10px;
+  font-size:1.05rem;font-weight:600;color:var(--text-2);
+  cursor:pointer;transition:all .15s ease;
+  font-family:inherit;
+  flex:1;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.tab-btn .tab-title{font-size:1.1rem;font-weight:700}
+.tab-btn .tab-desc{font-size:.78rem;font-weight:400;opacity:.85}
+.tab-btn:hover{color:var(--ink)}
+.tab-btn.active{
+  background:#fff;color:var(--ink);
+  box-shadow:0 1px 2px rgba(0,0,0,.05);
+}
+
+.sound-pill{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 14px;
+  border-radius:999px;
+  background:var(--paper-2);
+  border:1px solid var(--line);
+  font:inherit;font-size:.85rem;font-weight:500;color:var(--text-2);
+  cursor:pointer;transition:all .2s ease;
+}
+.sound-pill:hover{color:var(--ink);border-color:var(--text-3);background:#fff}
+.sound-pill.active{
+  background:linear-gradient(135deg,rgba(59,111,224,.10),rgba(126,75,217,.10));
+  border-color:transparent;color:var(--ink);
+  box-shadow:0 0 0 1px rgba(126,75,217,.35),0 4px 14px rgba(126,75,217,.10);
+}
+.sound-pill svg{width:15px;height:15px;stroke-width:2}
+.tab-content{display:none}
+.tab-content.active{display:block;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.video-grid{
+  display:grid;
+  grid-template-columns:13fr 20fr 20fr;
+  grid-auto-flow:dense;
+  gap:14px;
+}
+.video-card{
+  position:relative;
+  background:#fff;border-radius:var(--radius);overflow:visible;
+  border:1px solid var(--line);
+  box-shadow:var(--shadow-1);
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+  isolation:isolate;
+}
+.video-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-2);border-color:var(--text-3);z-index:50}
+.video-card video{width:100%;display:block;background:#000;border-radius:var(--radius) var(--radius) 0 0}
+.video-card .progress-bar{
+  width:100%;height:4px;background:#e0e0e0;position:relative;cursor:pointer;
+}
+.video-card .progress-bar .progress-fill{
+  height:100%;background:linear-gradient(90deg,#3B6FE0,#7E4BD9);width:0%;
+}
+.video-card.portrait{
+  grid-column:1;
+  grid-row:span 2;
+}
+.video-card.portrait video{width:100%;display:block}
+.video-grid-equal{grid-template-columns:repeat(3,1fr)}
+.spk-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line-2)}
+.spk-tag{display:inline-flex;align-items:center}
+.spk-avatar{width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid var(--line)}
+.video-card .caption{
+  position:absolute;
+  right:calc(100% + 2px);
+  top:0;
+  width:280px;
+  padding:14px 16px;
+  font-size:.82rem;color:var(--text-2);
+  background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow-2);
+  line-height:1.6;
+  opacity:0;pointer-events:none;
+  transform:translateX(8px);
+  transition:opacity .3s ease,transform .3s ease;
+  z-index:100;
+  max-height:400px;overflow-y:auto;
+}
+.video-card.expanded .caption{
+  opacity:1;pointer-events:auto;
+  transform:translateX(0);
+}
+
+/* ===== bibtex ===== */
+.bibtex{
+  background:#0F1117;color:#D6D9E2;
+  border-radius:var(--radius);
+  padding:22px 26px;font-family:'JetBrains Mono',monospace;font-size:.84rem;
+  line-height:1.7;white-space:pre;overflow-x:auto;
+  position:relative;
+}
+.copy-btn{
+  position:absolute;top:12px;right:12px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  color:#C4C7D2;padding:5px 11px;border-radius:6px;font-size:.76rem;
+  cursor:pointer;font-family:inherit;transition:all .15s;
+}
+.copy-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+
+/* ===== ack & footer ===== */
+.ack{max-width:var(--maxw);margin:0 auto;color:var(--text-2);font-size:.96rem;line-height:1.7}
+footer{
+  border-top:1px solid var(--line);
+  padding:32px 28px;
+  text-align:center;color:var(--text-3);font-size:.84rem;
+  background:var(--paper);
+}
+
+/* ===== reveal animation ===== */
+.reveal{opacity:0;transform:translateY(12px);transition:opacity .6s ease,transform .6s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  .reveal{opacity:1;transform:none;transition:none}
+  *{animation:none!important;transition:none!important}
+}
+
+/* ===== responsive ===== */
+@media (max-width:720px){
+  .nav-links{display:none}
+  section{padding:64px 22px}
+  .hero{padding:64px 22px 56px}
+  .video-grid{grid-template-columns:1fr 1fr;gap:12px}
+  .video-card.portrait{grid-column:auto}
+  .abstract{font-size:.98rem}
+}
+@media (max-width:480px){
+  .video-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== nav ===== -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="#top">
+      <span class="logo-mark">N</span>
+      <span>NAVA</span>
+    </a>
+    <div class="nav-links">
+      <a href="#abstract">Abstract</a>
+      <a href="#method">Method</a>
+      <a href="#results">Results</a>
+      <a href="#showcase">Showcase</a>
+      <a href="#bibtex">BibTeX</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== hero ===== -->
+<header class="hero" id="top">
+  <div class="hero-inner">
+    <img class="hero-logo" src="assets/logo.png" alt="NAVA logo">
+    <div class="venue"><span class="dot"></span><span>arXiv · 2026</span></div>
+    <h1>Native Audio-Visual Alignment for Generation</h1>
+    <p class="sub">A native alignment framework that achieves state-of-the-art audio-visual synchronization with only <b>6.3B</b> parameters.</p>
+    <p class="authors">ERNIE Team</p>
+    <p class="affiliation">Baidu Inc.</p>
+    <div class="cta">
+      <a class="btn primary" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Paper
+      </a>
+      <a class="btn" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Code
+      </a>
+      <a class="btn" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        Model
+      </a>
+      <a class="btn" href="#showcase">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Showcase
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ===== teaser ===== -->
+<section style="padding-top:64px;padding-bottom:0;border-top:none">
+  <div class="container reveal">
+    <div class="teaser">
+      <video controls preload="metadata" poster="">
+        <source src="nava_demo_0525.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+</section>
+
+<!-- ===== highlights ===== -->
+<section id="highlights">
+  <div class="container reveal">
+    <div class="section-tag">Highlights</div>
+    <div class="highlights">
+      <div class="hl-item"><span class="hl-icon">&#9889;</span>720p 1min Fast Generation</div>
+      <div class="hl-item"><span class="hl-icon">&#127925;</span>Dual-Channel Audio</div>
+      <div class="hl-item"><span class="hl-icon">&#127908;</span>Precise Multi-Timbre Control</div>
+      <div class="hl-item"><span class="hl-icon">&#127909;</span>Language-Described Camera Control</div>
+      <div class="hl-item"><span class="hl-icon">&#128249;</span>Multi-Resolution (Landscape / Portrait / Square)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== abstract ===== -->
+<section id="abstract">
+  <div class="container reveal">
+    <div class="section-tag">Abstract</div>
+    <h2 class="section-title">A native space where audio and video co-evolve.</h2>
+    <div class="abstract-wrap">
+      <div class="abstract">
+        <p>Joint audio-video generation aims to synthesize temporally synchronized and semantically coherent visual and acoustic content. Existing open-source methods mainly follow dual-tower designs, which generate audio and video in separate streams and rely on posterior alignment, or fully unified tri-modal designs, which mix textual context, audio, and video in a single shared space. These paradigms either weaken fine-grained audio-video co-evolution or couple semantic conditioning with low-level synchronization.</p>
+        <p>We propose <span class="kw">NAVA</span>, a Native Audio-Visual Alignment framework that formulates generation as <i>context-conditioned native audio-visual alignment</i>. NAVA first establishes audio-video correspondence in a dedicated alignment space and then applies context as external conditioning to guide the aligned representation.</p>
+        <p>We instantiate this formulation with an <span class="kw">Align-then-Fuse MMDiT</span> architecture, which progressively bridges modality-aware alignment and unified audio-video denoising. To support controllable speech generation, we further introduce <span class="kw">Timbre-in-Context Conditioning</span>, which binds reference timbre cues to corresponding speech spans through the context pathway.</p>
+        <p>Experiments on Verse-Bench and the Seed-TTS benchmark demonstrate that NAVA achieves superior audio-visual synchronization and video quality, competitive audio quality, and substantially improved reference-timbre controllability with only <b>6.3B</b> parameters.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== method ===== -->
+<section id="method">
+  <div class="container reveal">
+    <div class="section-tag">Method</div>
+    <h2 class="section-title">Align-then-Fuse MMDiT.</h2>
+    <div class="figure">
+      <img src="assets/arch.png" alt="NAVA Architecture">
+      <p class="figcaption"><span class="num">Figure 1.</span> Overview of NAVA. Hierarchical Alignment Layers establish audio-video correspondence in a dedicated alignment space; Unified Fusion Layers then perform context-conditioned denoising. Timbre-in-Context Conditioning binds reference timbre cues to speech spans via the context pathway.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== results ===== -->
+<section id="results">
+  <div class="container reveal">
+    <div class="section-tag">Quantitative Results</div>
+    <h2 class="section-title">State-of-the-art with 6.3B parameters.</h2>
+
+    <p class="tbl-title"><span class="num">Table 1.</span>General Capability on VerseBench</p>
+    <p class="tbl-sub">NAVA achieves the best AV synchronization (Sync-C / Sync-D / IB) and video quality with the smallest parameter budget.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th rowspan="2" style="text-align:left;padding-left:20px">Model</th>
+            <th rowspan="2">Params</th>
+            <th rowspan="2">Resolution</th>
+            <th colspan="3">AV-Align</th>
+            <th rowspan="2">Video Quality ↑</th>
+            <th colspan="3">Audio</th>
+          </tr>
+          <tr>
+            <th>Sync-C ↑</th><th>Sync-D ↓</th><th>IB ↑</th>
+            <th>WER ↓</th><th>PQ ↑</th><th>FD ↓</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="text-align:left;padding-left:20px">Ovi 1.1</td><td>10B</td><td>720p</td><td><u>7.4839</u></td><td>7.9791</td><td>0.199</td><td><u>0.636</u></td><td>0.102</td><td>5.8432</td><td>0.9418</td></tr>
+          <tr><td style="text-align:left;padding-left:20px">MOVA</td><td>A18B (32B)</td><td>720p</td><td>7.2888</td><td>7.808</td><td>0.269</td><td>0.603</td><td>0.126</td><td><b>7.2331</b></td><td>0.9222</td></tr>
+          <tr><td style="text-align:left;padding-left:20px">Davinci</td><td>15B</td><td>540p</td><td>7.1487</td><td>7.8158</td><td>0.269</td><td>0.600</td><td>0.151</td><td>5.9559</td><td>0.9307</td></tr>
+          <tr><td style="text-align:left;padding-left:20px">LTX 2.3</td><td>19B</td><td>512p</td><td>7.2476</td><td><u>7.6902</u></td><td><b>0.337</b></td><td>0.576</td><td>0.106</td><td><u>6.9459</u></td><td><b>0.8287</b></td></tr>
+          <tr class="ours"><td style="text-align:left;padding-left:20px">NAVA <span style="font-weight:400;color:var(--text-3);font-size:.82rem">(ours)</span></td><td>6.3B</td><td>720p</td><td><b>7.7914</b></td><td><b>7.5655</b></td><td><u>0.313</u></td><td><b>0.659</b></td><td><b>0.099</b></td><td>6.8609</td><td><u>0.8328</u></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="legend"><span><code>↑</code> higher is better</span><span><code>↓</code> lower is better</span><span><b>Bold</b> = best</span><span><u>Underline</u> = 2nd best</span></p>
+
+    <p class="tbl-title"><span class="num">Table 2.</span>Timbre-Control Speech Performance</p>
+    <p class="tbl-sub">Audio-only models are listed as <i>reference</i> only — they are dedicated speech systems and not directly comparable. Among joint audio-video models, NAVA delivers speech quality close to dedicated audio-only systems.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th style="text-align:left;padding-left:20px">Category</th><th style="text-align:left">Model</th><th>WER ↓</th><th>Speaker Similarity ↑</th></tr>
+        </thead>
+        <tbody>
+          <tr class="ref"><td rowspan="2" style="text-align:left;padding-left:20px">Audio Only<span class="ref-tag">reference</span></td><td style="text-align:left">CosyVoice</td><td>4.29</td><td>60.9</td></tr>
+          <tr class="ref"><td style="text-align:left">Qwen2.5-Omni</td><td>2.72</td><td>63.2</td></tr>
+          <tr><td rowspan="2" style="text-align:left;padding-left:20px;color:var(--text-2)">Audio-Video Joint</td><td style="text-align:left">DreamID-Omni</td><td>33.44</td><td>34.1</td></tr>
+          <tr class="ours"><td style="text-align:left">NAVA <span style="font-weight:400;color:var(--text-3);font-size:.82rem">(ours)</span></td><td><b>5.81</b></td><td><b>62.4</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===== user study (hidden for now) =====
+<section id="user-study">
+  <div class="container reveal">
+    <div class="section-tag">User Study</div>
+    <h2 class="section-title">Human evaluators prefer NAVA.</h2>
+    <div style="max-width:var(--read);color:var(--text-2);margin:0 auto 32px;font-size:.98rem;line-height:1.7">
+      <p>We conducted a pairwise user study (<i>n = 250</i> votes per pair) comparing NAVA against four representative open-source baselines on the VerseBench prompt set. Evaluators rated overall preference under blind A/B viewing.</p>
+    </div>
+    <div class="figure" style="margin-top:0;max-width:880px">
+      <img src="assets/use_study.png" alt="User study results">
+      <p class="figcaption"><span class="num">Figure 2.</span> NAVA wins or ties against the strongest open-source baselines on the majority of comparisons.</p>
+    </div>
+  </div>
+</section>
+===== /user study ===== -->
+
+<!-- ===== showcase ===== -->
+<section id="showcase">
+  <div class="container reveal">
+    <div class="section-tag">Showcase</div>
+    <h2 class="section-title">Generated samples.</h2>
+    <p style="color:var(--text-2);margin-bottom:36px;font-size:.98rem;line-height:1.7">All samples below are generated end-to-end by NAVA. Audio and video share a single denoising trajectory — No posterior alignment, No extra components.</p>
+
+    <div class="showcase-bar">
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="general" style="background:linear-gradient(135deg,#3B6FE0,#2A5BC8);color:#fff;box-shadow:0 2px 8px rgba(59,111,224,.3)">
+          <span class="tab-title">General</span>
+          <span class="tab-desc">Single/Multi-speaker Dialogue, Scene Audio & Camera Control</span>
+        </button>
+        <button class="tab-btn" data-tab="voice">
+          <span class="tab-title">Voice Control</span>
+          <span class="tab-desc">Single/Multi-speaker Timbre Control</span>
+        </button>
+      </div>
+
+      <div style="display:flex;gap:16px;align-items:center">
+      <button class="sound-pill" id="sound-toggle" aria-pressed="false" title="Enable sound on hover preview">
+        <svg class="ico-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        <svg class="ico-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        <span class="lbl">Tap to enable sound</span>
+      </button>
+
+      <button class="sound-pill" id="lang-toggle" title="Switch prompt language">
+        <span style="font-size:14px;font-weight:600">中/EN</span>
+        <span class="lbl">Click to switch prompt language</span>
+      </button>
+      </div>
+    </div>
+
+    <div class="tab-content active" id="tab-general"><div class="video-grid" id="grid-general"></div></div>
+    <div class="tab-content" id="tab-voice"><div class="video-grid" id="grid-voice"></div></div>
+  </div>
+</section>
+
+<!-- ===== bibtex ===== -->
+<section id="bibtex">
+  <div class="container reveal">
+    <div class="section-tag">BibTeX</div>
+    <h2 class="section-title">Cite this work.</h2>
+    <div style="position:relative">
+      <div class="bibtex" id="bibtex-block">@article{nava2026,
+  title   = {NAVA: Native Audio-Visual Alignment for Joint Audio-Video Generation},
+  author  = {ERNIE Team},
+  journal = {arXiv preprint},
+  year    = {2026},
+}</div>
+      <button class="copy-btn" id="copy-bib">Copy</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== acknowledgements ===== -->
+<section id="ack" style="padding-top:64px;padding-bottom:88px">
+  <div class="container reveal">
+    <div class="section-tag">Acknowledgements</div>
+    <div class="ack">
+      <p>We thank the open-source community for releasing strong baselines including Ovi, MOVA, Davinci and LTX, which made fair benchmarking possible. Website template inspired by the academic project pages community.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>NAVA · Baidu Inc. · &copy; 2026</div>
+</footer>
+
+<script>
+/* tabs */
+const tabColors = {
+  general:'background:linear-gradient(135deg,#3B6FE0,#2A5BC8);color:#fff;box-shadow:0 2px 8px rgba(59,111,224,.3)',
+  voice:'background:linear-gradient(135deg,#7E4BD9,#6236B0);color:#fff;box-shadow:0 2px 8px rgba(126,75,217,.3)'
+};
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>{b.classList.remove('active');b.style.cssText=''});
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    btn.style.cssText = tabColors[btn.dataset.tab]||'';
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* video grids */
+const tabDirs = {
+  general:'videos/general',
+  voice  :'videos/voice',
+};
+
+let soundEnabled = false;
+const soundBtn = document.getElementById('sound-toggle');
+const icoOff = soundBtn.querySelector('.ico-off');
+const icoOn  = soundBtn.querySelector('.ico-on');
+const lbl    = soundBtn.querySelector('.lbl');
+
+soundBtn.addEventListener('click', ()=>{
+  soundEnabled = !soundEnabled;
+  soundBtn.classList.toggle('active', soundEnabled);
+  soundBtn.setAttribute('aria-pressed', String(soundEnabled));
+  icoOff.style.display = soundEnabled ? 'none' : '';
+  icoOn .style.display = soundEnabled ? ''     : 'none';
+  lbl.textContent = soundEnabled ? 'Sound on' : 'Tap to enable sound';
+  document.querySelectorAll('.video-card video').forEach(v=>{
+    v.muted = !soundEnabled;
+  });
+});
+
+/* video prompts mapping */
+let videoPromptsCN = {};
+let videoPromptsEN = {};
+let videoPrompts = {};
+let videoSpks = {};
+let currentLang = 'cn';
+
+Promise.all([
+  fetch('/video_prompts.json').then(r=>r.json()).catch(()=>({})),
+  fetch('/video_prompts_en.json').then(r=>r.json()).catch(()=>({})),
+  fetch('/video_spks.json').then(r=>r.json()).catch(()=>({}))
+]).then(([cn, en, spks])=>{
+  videoPromptsCN = cn;
+  videoPromptsEN = en;
+  videoSpks = spks;
+  videoPrompts = videoPromptsCN;
+  loadGrids();
+});
+
+/* language toggle */
+const langBtn = document.getElementById('lang-toggle');
+langBtn.addEventListener('click', ()=>{
+  currentLang = currentLang === 'cn' ? 'en' : 'cn';
+  videoPrompts = currentLang === 'cn' ? videoPromptsCN : videoPromptsEN;
+  langBtn.querySelector('span').textContent = '中/EN';
+  langBtn.querySelector('.lbl').textContent = currentLang === 'cn' ? 'Current: 中文 Prompt' : 'Current: English Prompt';
+  langBtn.classList.toggle('active', currentLang === 'en');
+  // Update all visible captions
+  document.querySelectorAll('.video-card').forEach(card=>{
+    const key = card.getAttribute('data-key');
+    if(!key) return;
+    const caption = card.querySelector('.caption');
+    if(caption){
+      const escHtml = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const spks = videoSpks[key] || [];
+      let spkHtml = '';
+      if(spks.length > 0){
+        spkHtml = '<div class="spk-row">' + spks.map(s=>{
+          const name = s.replace(/\.(png|wav)$/i,'').replace(/_/g,' ');
+          return `<span class="spk-tag"><img src="spks/${s}" class="spk-avatar"></span>`;
+        }).join('') + '</div>';
+      }
+      caption.innerHTML = spkHtml + escHtml(videoPrompts[key] || '');
+    }
+  });
+});
+
+function stopOtherVideos(except){
+  document.querySelectorAll('.video-card video').forEach(v=>{
+    if(v!==except){ v.pause(); v.currentTime=0; v.closest('.video-card').classList.remove('expanded'); }
+  });
+}
+
+function hoverPlay(card){
+  const v = card.querySelector('video');
+  stopOtherVideos(v);
+  v.muted = !soundEnabled;
+  v.currentTime = 0;
+  v.play();
+  card.classList.add('expanded');
+  stopProgressLoop();
+  v._onPlaying = function(){ startProgressLoop(card); };
+  v.addEventListener('playing', v._onPlaying, {once:true});
+}
+function hoverPause(card){
+  const v = card.querySelector('video');
+  if(v._onPlaying){ v.removeEventListener('playing', v._onPlaying); v._onPlaying=null; }
+  v.pause();
+  v.currentTime = 0;
+  stopProgressLoop();
+  card.classList.remove('expanded');
+  card.querySelector('.progress-fill').style.width = '0%';
+}
+
+function updateProgress(v){
+  if(v.duration){
+    const pct = (v.currentTime / v.duration) * 100;
+    v.closest('.video-card').querySelector('.progress-fill').style.width = pct + '%';
+  }
+}
+function seekVideo(e, bar){
+  const card = bar.closest('.video-card');
+  const v = card.querySelector('video');
+  const rect = bar.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  v.currentTime = pct * v.duration;
+}
+
+let _progRAF = null;
+function startProgressLoop(card){
+  const v = card.querySelector('video');
+  const fill = card.querySelector('.progress-fill');
+  function tick(){
+    if(v.duration){
+      fill.style.width = (v.currentTime / v.duration * 100) + '%';
+    }
+    _progRAF = requestAnimationFrame(tick);
+  }
+  _progRAF = requestAnimationFrame(tick);
+}
+function stopProgressLoop(){
+  if(_progRAF){ cancelAnimationFrame(_progRAF); _progRAF = null; }
+}
+function cleanCaption(name){
+  let s = name.replace(/\.mp4$/i,'')
+              .replace(/_av$/,'')
+              .replace(/^\d+_/,'')
+              .replace(/-\d+$/,'')
+              .replace(/_/g,' ')
+              .trim();
+  if (s.length > 90) s = s.slice(0,90) + '…';
+  return s || '—';
+}
+
+function loadGrids(){
+Object.entries(tabDirs).forEach(([tab,dir])=>{
+  fetch('/api/list?dir='+encodeURIComponent(dir))
+    .then(r=>r.json())
+    .then(files=>{
+      const grid = document.getElementById('grid-'+tab);
+      if (!files || files.length === 0){
+        grid.innerHTML = '<p style="color:var(--text-3);font-size:.92rem;grid-column:1/-1;text-align:center;padding:40px 0">More samples coming soon.</p>';
+        return;
+      }
+      // Separate portrait and landscape
+      const portraits = [];
+      const landscapes = [];
+      files.forEach(item=>{
+        const f = typeof item === 'string' ? item : item.name;
+        const isP = (typeof item === 'object' && item.h > item.w);
+        if(isP) portraits.push(f);
+        else landscapes.push(f);
+      });
+
+      // Build cards: each portrait takes 1 slot + 4 landscape slots (2 rows of 2)
+      // Pattern: portrait-left row, then portrait-right row, alternating
+      let html = '';
+      let pIdx = 0;
+      let lIdx = 0;
+
+      function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+      function makeCard(f, cls){
+        const src = dir+'/'+encodeURIComponent(f);
+        const promptKey = dir+'/'+f;
+        const prompt = videoPrompts[promptKey] || '';
+        const spks = videoSpks[promptKey] || [];
+        let spkHtml = '';
+        if(spks.length > 0){
+          spkHtml = '<div class="spk-row">' + spks.map(s=>{
+            return `<span class="spk-tag"><img src="spks/${s}" class="spk-avatar"></span>`;
+          }).join('') + '</div>';
+        }
+        return `<div class="${cls}" data-key="${promptKey}"
+                     onmouseenter="hoverPlay(this)" onmouseleave="hoverPause(this)">
+            <video preload="metadata" playsinline loop muted>
+              <source src="${src}" type="video/mp4">
+            </video>
+            <div class="progress-bar" onclick="seekVideo(event,this)"><div class="progress-fill"></div></div>
+            <div class="caption">${spkHtml}${escHtml(prompt)}</div>
+          </div>`;
+      }
+
+      while(pIdx < portraits.length){
+        const pf = portraits[pIdx];
+        html += makeCard(pf, 'video-card portrait');
+        for(let i=0; i<4 && lIdx < landscapes.length; i++, lIdx++){
+          html += makeCard(landscapes[lIdx], 'video-card');
+        }
+        pIdx++;
+      }
+      grid.innerHTML = html;
+      // Remaining landscapes → equal-width grid appended after
+      if(lIdx < landscapes.length){
+        let extraHtml = '';
+        while(lIdx < landscapes.length){
+          extraHtml += makeCard(landscapes[lIdx], 'video-card');
+          lIdx++;
+        }
+        // Remove any previous extra grid
+        const old = grid.parentNode.querySelector('.video-grid-equal');
+        if(old) old.remove();
+        const extraGrid = document.createElement('div');
+        extraGrid.className = 'video-grid video-grid-equal';
+        extraGrid.innerHTML = extraHtml;
+        grid.after(extraGrid);
+      }
+    })
+    .catch(()=>{
+      const grid = document.getElementById('grid-'+tab);
+      grid.innerHTML = '<p style="color:var(--text-3);font-size:.92rem;grid-column:1/-1;text-align:center;padding:40px 0">Sample list unavailable in static preview.</p>';
+    });
+});
+} /* end loadGrids */
+/* copy bibtex */
+document.getElementById('copy-bib').addEventListener('click',e=>{
+  const t = document.getElementById('bibtex-block').innerText;
+  navigator.clipboard.writeText(t).then(()=>{
+    e.target.textContent = 'Copied';
+    setTimeout(()=>e.target.textContent='Copy',1600);
+  });
+});
+
+/* reveal on scroll */
+const io = new IntersectionObserver(entries=>{
+  entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+},{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

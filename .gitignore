@@ -1,0 +1,129 @@
+# ============================================================
+# Large model weights / checkpoints (host on Hugging Face, not GitHub)
+# ============================================================
+*.ckpt
+*.safetensors
+*.pth
+*.pt
+*.bin
+*.onnx
+*.h5
+*.msgpack
+
+# Vendored pretrained components — users download from HF themselves
+Wan2.2-TI2V-5B/
+huggingface_upload/
+params/
+
+# ============================================================
+# Eval / inference outputs
+# ============================================================
+eval_results*/
+outputs/
+output/
+runs/
+logs/
+wandb/
+
+# ============================================================
+# Data
+# ============================================================
+data/
+*.tar
+*.tar.gz
+*.zip
+*.7z
+
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtualenvs
+venv/
+.venv/
+env/
+.env
+
+# ============================================================
+# Logs / scratch
+# ============================================================
+nohup.out
+*.log
+*.out
+.cache/
+
+# ============================================================
+# Editor / OS
+# ============================================================
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ============================================================
+# Accidental / personal
+# ============================================================
+截屏*.png
+截屏*.jpg
+说。
+configs_backup/
+
+# ============================================================
+# Demo — hosted in the separate NAVA-Page repo. Keep only the
+# lightweight source (index.html, server.py, prompt JSONs);
+# ignore the bulky media + speaker wavs.
+# ============================================================
+demo/videos/
+demo/nava_demo_*.mp4
+demo/assets/
+demo/spks/
+demo/server.log
+demo/server.pid
+
+# ============================================================
+# prompt_matching — internal tooling + tsvs, not for release
+# ============================================================
+prompt_matching/
+
+# ============================================================
+# Internal one-off scripts and scratch text — not for release
+# ============================================================
+/eval_local_vae.sh
+/eval_ovi_verse.sh
+/run_inference_sp.sh
+/kill_process.sh
+/ernie_video_showcase_captions.txt
+/ernie_video_showcase_captions_rewrite.txt
+/train_av.py
+
+# ============================================================
+# pe_src — Qwen model weights (download from HF)
+# ============================================================
+pe_src/Qwen*/
+pe_src/server.log
+pe_src/server.pid
+
+# ============================================================
+# nava_src/data — keep tracked (do NOT ignore)
+# ============================================================
+!nava_src/data/
+
+# ============================================================
+# Jupyter
+# ============================================================
+.ipynb_checkpoints/
+*.ipynb

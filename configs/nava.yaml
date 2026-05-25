@@ -1,0 +1,130 @@
+
+model_type: NAVA
+modality: audio_video # [audio, video, image, audio_video]
+
+# 模型
+model_id: /root/paddlejob/workspace/Qwen3-1.7B
+# model_id: GPT-B
+use_bf16: true
+audio_latent_ch: 128
+video_latent_ch: 48
+
+patch_size: 2
+image_size: 960
+log_width: 1280
+log_height: 704
+lambda_ddpm: 1.0
+
+pipeline: nava_src.pipeline_nava.AudioVideoPipeline
+scheduler_personalized: true
+scheduler_unipc: true
+use_loss_reweight: true
+attention_only: false
+
+use_mmdit_model: true
+audio_loss_coff: 0.2
+vision_loss_coff: 1
+
+# 推理
+video_guidance_scale: 3.0
+audio_guidance_scale: 2.0
+video_align_guidance_scale: 3.0
+audio_align_guidance_scale: 2.0
+masking_modality_prob: 0.2
+align_3d_cfg: true
+i2v_mode_prob: 0.5
+no_split_norm_ffn: true
+timbre_cfg: true
+timbre_align_guidance_scale: 3.0
+
+# 数据
+data:
+  # data_filelist: data/video_text/data_videogen_0630_256px_shijue.list
+  # data_weights: data/video_text/data_video_0630_shijue.weight
+  # data_filelist: data/audio_text/mixture_0207/data.list
+  # data_weights: data/audio_text/mixture_0207/data.weight
+  # data_filelist: av_data_v2.list
+  # data_weights: av_data.weight
+  data_filelist: av_data_v4_470w_filter10_with_audio.list
+  data_weights: av_data_v4_470w_filter10_with_audio.weight
+  # data_filelist: joint_train_mmdit.list
+  # data_weights: joint_train_mmdit.weight
+  use_length_buckets: true
+  num_length_buckets: 5
+  enable_ddp_bucket_sync: true
+  audio_tokens_per_sec: 25
+
+  queue_size: 16
+  io_workers: 4
+
+  modal_prob: 
+    text_to_audio: 1
+    text_to_video: 0.0
+    text_to_image: 0.0
+    text_to_av: 1
+
+  # server config
+  use_server: False
+  audio_scaling_factor: 1.0
+  audio_shift_factor: 0.0
+  video_scaling_factor: 1.0
+  video_shift_factor: 0.0
+  zlib_mode: false
+  zstd_mode: true
+
+  # video_fps: 16
+  # video_min_frames: 33
+  # video_max_frames: 300
+  # video_tgt_frames: 81
+  min_audio_duration: 0.0
+  max_audio_duration: 10.0
+
+  video_fps: 24
+  video_min_frames: 33
+  video_max_frames: 400
+  video_tgt_frames: 121
+  # video_tgt_frames: 241
+
+  add_spk_emb: true
+  spk_emb_prob: 0.9
+  use_speech_special_token: false
+
+model:
+  shift: 5
+  shift_audio: 5
+  num_train_timesteps: 1000
+  gradient_checkpointing: true
+  cross_gate: false
+  cross_1d_rope: false
+
+  # audio_config: nava_src/models/nava/configs/model/dit/audio.json
+  # video_config: nava_src/models/nava/configs/model/dit/video.json
+  audio_config: nava_src/models/nava/configs/model/dit/audio_tiny.json
+  video_config: nava_src/models/nava/configs/model/dit/video_tiny.json
+  joint_config: nava_src/models/nava/configs/model/dit/NAVA_6B.json
+  ckpt_dir: ./
+
+
+# 训练
+batch_size: 1
+lr: 1.0e-4
+weight_decay: 0
+warmup_steps: 0
+max_steps: 1000000
+save_every: 2500
+out_dir: outputs/t2av_baseline_demo_mmdit_test_no_separate_modulation
+seed: 42
+
+flow: true
+
+# 性能相关
+num_workers: 0
+prefetch_factor: 32
+grad_accum_steps: 1
+log_every: 1
+log_cases_every: 1000000        # >0 才会写图像
+log_sample_steps: 25
+log_cfg: 4
+max_grad_norm: 1.0
+amp_dtype: bf16            # bf16 / fp16 / null
+
