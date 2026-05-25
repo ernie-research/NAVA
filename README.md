@@ -81,11 +81,16 @@ Place in `./Wan2.2-TI2V-5B/`:
 | `Wan2.2_VAE.pth` | 2.7 GB | Video VAE (Causal 3D ConvNet) |
 | `models_t5_umt5-xxl-enc-bf16.pth` | 11 GB | T5 text encoder weights |
 | `google/umt5-xxl/` | — | T5 Tokenizer (spiece.model, tokenizer.json) |
-| `diffusion_pytorch_model-000{1,2,3}-of-00003.safetensors` | ~19 GB | Base DiT weights (sharded) |
 
-Download:
+Only the VAE and T5 are needed — the DiT backbone weights are not used (NAVA has its own MMDiT). You can selectively download:
+
 ```bash
-huggingface-cli download Wan-AI/Wan2.2-TI2V-5B --local-dir ./Wan2.2-TI2V-5B
+huggingface-cli download Wan-AI/Wan2.2-TI2V-5B \
+    Wan2.2_VAE.pth \
+    models_t5_umt5-xxl-enc-bf16.pth \
+    google/umt5-xxl/spiece.model \
+    google/umt5-xxl/tokenizer.json \
+    --local-dir ./Wan2.2-TI2V-5B
 ```
 
 ### 3. Audio VAE Weights
