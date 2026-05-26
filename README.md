@@ -8,7 +8,7 @@ NAVA is a Native Audio-Visual Alignment framework that formulates joint audio-vi
 
 ## Demo
 
-<video src="https://ernie-bucket.bj.bcebos.com/videos/NAVA/nava_demo_0525.mp4?authorization=bce-auth-v1/def34130592211f1891ff512f754de45/2026-05-26T16%3A49%3A32Z/300/host/6abe4355dc9ccb4e8952634b3e1e624aa086460a77297ac4344ef30323d807e6&x-bce-security-token=ZjkyZmQ2YmQxZTQ3NDcyNjk0ZTg1ZjYyYjlkZjNjODB8AAAAAG8HAAC6X976uMmtKNSaDWdYkuJdIFUtkEuGl7LCz7LxdWzry/lsI/VuP%2BSOE7fUKJMG7cWP1m/MgenKrX/qEapw9CyA%2BN93UvcmkkHi5lUzj9iIPQL/awm56x%2BFbLY4eZ4s4eY6edQKMwNwG6UohkC0VCaYFtwNEBultZJjZLz8hDV2qPSUGdPdO7DmHH5ycxYq/fEo7WzFy6huNkPV4Vc2kHo8ZnTlPBjbboxTjMdde4drOHj/uTdqGEepTIigvVhJuetcl50NPkgoiPMBa7/jeMPRMK22//XpN8GZK2/Utpi6NR58rDQ6muE/P/Yt5mLlHXQRCgV%2B59SHy12ZCEtY6rVYDbEbsJepGHgVDNmh/0joPTi5Z4hGx64OqvZyjBb5hO/jQqasgxxqSBHkfOgHu1heqPDbCSgAYyQI5ZF1epMPOdyqXQT7uIwrTmBvje1EuBSOXbIGf2kuVl9olRDcCkgGJ%2BVWAwqs0bYRMWX%2Bv5Q09Ky7%2BcTLS7wH3/q3FiYorGgGycV/6vlWIty3mxJ%2BR23gTzemP5aHaVJPeKCmUN9hR0WqdmiyJpBU%2BavPz0uyCroZx0jSNz31xX9ph6oper7tr/55ZX/GWob6cC9aOYvCw038qJHjpaTMnfZTdORgu16XS4puBhYYJB860dpGQpRDKQ9xzzH4%2BqePyB%2BR8md4fA%3D%3D" controls width="100%"></video>
+<video src="https://github.com/robingg1/PoseTraj/releases/download/nava_Demo/nava_demo_0525.mp4" controls width="100%"></video>
 
 ## Features
 
