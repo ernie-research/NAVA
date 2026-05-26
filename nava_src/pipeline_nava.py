@@ -50,8 +50,7 @@ class AudioVideoPipeline(DiffusionPipeline):
             video_vae = LocalVideoVAEAdapter(wan_vae, resolution=cfg["image_size"])
         if "audio" in cfg["modality"]:
             from nava_src.vae.local_audio_vae import LocalAudioVAEAdapter, init_ltx_vae
-            audio_vae_ckpt_dir = cfg["model"].get("audio_vae_ckpt_dir",
-                "/root/paddlejob/workspace/env_run/audio_server_ltx/params")
+            audio_vae_ckpt_dir = cfg["model"].get("audio_vae_ckpt_dir", "./params")
             ltx_vae = init_ltx_vae(audio_vae_ckpt_dir, device=device)
             spk_model = None
             try:

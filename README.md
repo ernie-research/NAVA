@@ -8,7 +8,7 @@ NAVA is a Native Audio-Visual Alignment framework that formulates joint audio-vi
 
 ## Demo
 
-<video src="demo/nava_demo_0525.mp4" controls width="100%"></video>
+<video src="https://ernie-bucket.bj.bcebos.com/videos/NAVA/nava_demo_0525.mp4?authorization=bce-auth-v1/def34130592211f1891ff512f754de45/2026-05-26T16%3A49%3A32Z/300/host/6abe4355dc9ccb4e8952634b3e1e624aa086460a77297ac4344ef30323d807e6&x-bce-security-token=ZjkyZmQ2YmQxZTQ3NDcyNjk0ZTg1ZjYyYjlkZjNjODB8AAAAAG8HAAC6X976uMmtKNSaDWdYkuJdIFUtkEuGl7LCz7LxdWzry/lsI/VuP%2BSOE7fUKJMG7cWP1m/MgenKrX/qEapw9CyA%2BN93UvcmkkHi5lUzj9iIPQL/awm56x%2BFbLY4eZ4s4eY6edQKMwNwG6UohkC0VCaYFtwNEBultZJjZLz8hDV2qPSUGdPdO7DmHH5ycxYq/fEo7WzFy6huNkPV4Vc2kHo8ZnTlPBjbboxTjMdde4drOHj/uTdqGEepTIigvVhJuetcl50NPkgoiPMBa7/jeMPRMK22//XpN8GZK2/Utpi6NR58rDQ6muE/P/Yt5mLlHXQRCgV%2B59SHy12ZCEtY6rVYDbEbsJepGHgVDNmh/0joPTi5Z4hGx64OqvZyjBb5hO/jQqasgxxqSBHkfOgHu1heqPDbCSgAYyQI5ZF1epMPOdyqXQT7uIwrTmBvje1EuBSOXbIGf2kuVl9olRDcCkgGJ%2BVWAwqs0bYRMWX%2Bv5Q09Ky7%2BcTLS7wH3/q3FiYorGgGycV/6vlWIty3mxJ%2BR23gTzemP5aHaVJPeKCmUN9hR0WqdmiyJpBU%2BavPz0uyCroZx0jSNz31xX9ph6oper7tr/55ZX/GWob6cC9aOYvCw038qJHjpaTMnfZTdORgu16XS4puBhYYJB860dpGQpRDKQ9xzzH4%2BqePyB%2BR8md4fA%3D%3D" controls width="100%"></video>
 
 ## Features
 
@@ -68,74 +68,27 @@ Audio-only models are listed as *reference* only — they are dedicated speech s
 
 ## Weight Preparation
 
-### 1. NAVA Main Checkpoint (MMDiT)
-
-The main diffusion model weights (`.ckpt` file with `state_dict` key). Place in project root.
-
-### 2. Wan2.2-TI2V-5B Base Components
-
-Place in `./Wan2.2-TI2V-5B/`:
-
-| File | Size | Description |
-|------|------|-------------|
-| `Wan2.2_VAE.pth` | 2.7 GB | Video VAE (Causal 3D ConvNet) |
-| `models_t5_umt5-xxl-enc-bf16.pth` | 11 GB | T5 text encoder weights |
-| `google/umt5-xxl/` | — | T5 Tokenizer (spiece.model, tokenizer.json) |
-
-Only the VAE and T5 are needed — the DiT backbone weights are not used (NAVA has its own MMDiT). You can selectively download:
+One command pulls every weight needed for inference:
 
 ```bash
-huggingface-cli download Wan-AI/Wan2.2-TI2V-5B \
-    Wan2.2_VAE.pth \
-    models_t5_umt5-xxl-enc-bf16.pth \
-    google/umt5-xxl/spiece.model \
-    google/umt5-xxl/tokenizer.json \
-    --local-dir ./Wan2.2-TI2V-5B
+huggingface-cli download <org>/NAVA --local-dir ./
 ```
 
-### 3. Audio VAE Weights
+This populates the project root with `NAVA.ckpt`, `Wan2.2-TI2V-5B/`, `params/`, and `configs/` — no further setup required.
 
-Place in the path specified by `model.audio_vae_ckpt_dir` in config:
+### What's inside
 
-```
-params/
-├── LTX2/
-│   └── ltx-2.3-22b-dev_audio_vae.safetensors    (348 MB, LTX Audio VAE)
-└── MMAudio/
-    └── ext_weights/
-        ├── v1-16.pth                              (655 MB, MMAudio ToD VAE)
-        └── best_netG.pt                           (429 MB, BigVGAN Vocoder)
-```
+| Path | Size | Source |
+|---|---|---|
+| `NAVA.ckpt` | 24 GB | NAVA |
+| `Wan2.2-TI2V-5B/Wan2.2_VAE.pth` | 2.7 GB | mirrored from [Wan-AI/Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) |
+| `Wan2.2-TI2V-5B/models_t5_umt5-xxl-enc-bf16.pth` | 11 GB | mirrored from Wan-AI/Wan2.2-TI2V-5B |
+| `Wan2.2-TI2V-5B/google/umt5-xxl/{spiece.model,tokenizer.json}` | 21 MB | T5 tokenizer |
+| `params/LTX2/ltx-2.3-22b-dev_audio_vae.safetensors` | 348 MB | mirrored from [Lightricks/LTX-Video](https://github.com/Lightricks/LTX-Video) (LTX-2 Community License — see `params/LTX2/LICENSE`) |
 
-### 4. LTX-2.3-VAE (Audio VAE code dependency)
+The LTX audio-VAE Python code is vendored under `nava_src/vendor/ltx_core/` (see its `NOTICE.md` and `LICENSE`), so no separate clone of the LTX repo is needed.
 
-The Audio VAE and BigVGAN vocoder model definitions come from the [LTX-2](https://github.com/Lightricks/LTX-Video) repository. Clone it alongside NAVA:
-
-```bash
-git clone https://github.com/Lightricks/LTX-Video.git LTX-2
-```
-
-Expected directory layout:
-
-```
-your_workspace/
-├── NAVA/
-└── LTX-2/
-    └── packages/
-        └── ltx-core/
-            └── src/        ← this path is auto-detected by NAVA
-```
-
-NAVA looks for `ltx-core/src` at `../../audio_server_ltx/LTX-2/packages/ltx-core/src` relative to `nava_src/vae/`. If your layout differs, create a symlink:
-
-```bash
-# From NAVA project root:
-ln -s /path/to/LTX-2 audio_server_ltx/LTX-2
-```
-
-### 5. ReDimNet Speaker Embedder
-
-Downloaded automatically via `torch.hub` on first run — no manual setup needed.
+The ReDimNet speaker embedder is fetched automatically via `torch.hub` on first run.
 
 ## Installation
 

@@ -1,4 +1,3 @@
-import sys
 import os
 import io
 
@@ -7,18 +6,8 @@ import torchaudio
 import numpy as np
 from types import SimpleNamespace
 
-LTX_CORE_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "../../audio_server_ltx/LTX-2/packages/ltx-core/src"
-)
-if not os.path.exists(LTX_CORE_PATH):
-    LTX_CORE_PATH = "/root/paddlejob/workspace/env_run/audio_server_ltx/LTX-2/packages/ltx-core/src"
-
-if LTX_CORE_PATH not in sys.path:
-    sys.path.insert(0, LTX_CORE_PATH)
-
-from ltx_core.model.audio_vae.audio_vae import AudioEncoder, AudioDecoder
-from ltx_core.model.audio_vae.model_configurator import (
+from nava_src.vendor.ltx_core.model.audio_vae.audio_vae import AudioEncoder, AudioDecoder
+from nava_src.vendor.ltx_core.model.audio_vae.model_configurator import (
     AudioEncoderConfigurator,
     AudioDecoderConfigurator,
     VocoderConfigurator,
@@ -26,9 +15,9 @@ from ltx_core.model.audio_vae.model_configurator import (
     AUDIO_VAE_DECODER_COMFY_KEYS_FILTER,
     VOCODER_COMFY_KEYS_FILTER,
 )
-from ltx_core.model.audio_vae.ops import AudioProcessor
-from ltx_core.loader.single_gpu_model_builder import SingleGPUModelBuilder
-from ltx_core.types import Audio, AudioLatentShape
+from nava_src.vendor.ltx_core.model.audio_vae.ops import AudioProcessor
+from nava_src.vendor.ltx_core.loader.single_gpu_model_builder import SingleGPUModelBuilder
+from nava_src.vendor.ltx_core.types import Audio, AudioLatentShape
 
 TARGET_SAMPLE_RATE = 16000
 
