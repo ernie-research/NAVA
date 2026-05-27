@@ -2,7 +2,7 @@
   <img src="assets/logo.png" alt="NAVA" width="180">
 </p>
 
-# NAVA — Native Audio-Visual Alignment for Joint Generation
+# NAVA — Native Audio-Visual Alignment for Generation
 
 <p align="center">
   <a href="https://ernie-research.github.io/NAVA"><img src="https://img.shields.io/badge/Project-Page-1e88e5?style=flat-square&logo=googlechrome&logoColor=white" alt="Project Page"></a>
@@ -20,6 +20,8 @@ NAVA is a Native Audio-Visual Alignment framework that formulates joint audio-vi
 https://github.com/user-attachments/assets/917bafe1-c015-4b55-9814-3f94e0970710
 
 </div>
+
+---
 
 ## Features
 
@@ -315,7 +317,7 @@ If you find NAVA useful in your research, please cite:
 
 ```bibtex
 @article{nava2026,
-  title   = {NAVA: Native Audio-Visual Alignment for Joint Audio-Video Generation},
+  title   = {NAVA: Native Audio-Visual Alignment for Generation},
   author  = {ERNIE Team},
   journal = {arXiv preprint},
   year    = {2026},
