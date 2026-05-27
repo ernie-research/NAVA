@@ -25,11 +25,11 @@ https://github.com/user-attachments/assets/917bafe1-c015-4b55-9814-3f94e0970710
 
 ## Features
 
-- **720p 1-min Fast Generation** — produce 720p synchronized audio-video in roughly a minute on 8 GPUs (Ulysses sequence parallel).
-- **Dual-Channel Audio** — stereo audio (scene + speech) jointly denoised with video, no post-hoc vocoder alignment.
-- **Precise Multi-Timbre Control** — bind reference WAVs to `<S>...<E>` speech spans for per-speaker voice identity.
-- **Language-Described Camera Control** — drive shot composition, motion, and pacing directly from the text prompt.
-- **Multi-Resolution** — landscape, portrait, and square aspect ratios from the same checkpoint.
+- **720p in ~1 Minute** — Generate synchronized 720p audio-video in about one minute on 8 GPUs with Ulysses sequence parallelism.
+- **Native Stereo Audio** — Jointly generate scene sounds and speech with video, no post-hoc vocoder alignment required.
+- **Multi-Timbre Voice Control** — Bind reference WAVs to `<S>...<E>` spans for precise per-speaker voice identity.
+- **Text-Driven Camera Control** — Specify shot composition, camera motion, and pacing directly in the prompt.
+- **Flexible Aspect Ratios** — Generate landscape, portrait, and square videos from the same checkpoint.
 
 ## Quick Start
 
@@ -37,15 +37,15 @@ https://github.com/user-attachments/assets/917bafe1-c015-4b55-9814-3f94e0970710
 
 ```bash
 pip install torch torchvision torchaudio
-pip install diffusers transformers accelerate safetensors
-pip install einops scipy numpy PyYAML tqdm sentencepiece
+pip install diffusers==0.35.2 transformers==4.57.1 accelerate==1.12.0 safetensors
+pip install open_clip_torch einops scipy numpy PyYAML tqdm sentencepiece
 pip install flash-attn --no-build-isolation
 ```
 
 **2. Download weights** (one command pulls `NAVA.ckpt` and all dependencies into the project root):
 
 ```bash
-huggingface-cli download <org>/NAVA --local-dir ./
+huggingface-cli download robingg1/NAVA --local-dir ./
 ```
 
 **3. Run inference** (8 GPUs with sequence parallel):
