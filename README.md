@@ -4,6 +4,13 @@
 
 # NAVA — Native Audio-Visual Alignment for Joint Generation
 
+<p align="center">
+  <a href="https://ernie-research.github.io/NAVA"><img src="https://img.shields.io/badge/Project-Page-1e88e5?style=flat-square&logo=googlechrome&logoColor=white" alt="Project Page"></a>
+  <a href="https://arxiv.org/abs/XXXX.XXXXX"><img src="https://img.shields.io/badge/arXiv-Paper-B31B1B?style=flat-square&logo=arxiv&logoColor=white" alt="arXiv"></a>
+  <a href="https://huggingface.co/ernie-research/NAVA"><img src="https://img.shields.io/badge/%F0%9F%A4%97_HuggingFace-Models-FFD21E?style=flat-square" alt="HuggingFace Models"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-4c1?style=flat-square" alt="License"></a>
+</p>
+
 NAVA is a Native Audio-Visual Alignment framework that formulates joint audio-video generation as *context-conditioned native audio-visual alignment*. NAVA first establishes audio-video correspondence in a dedicated alignment space and then applies context as external conditioning to guide the aligned representation. It is instantiated with an Align-then-Fuse MMDiT architecture, which progressively bridges modality-aware alignment and unified audio-video denoising. To support controllable speech generation, NAVA further introduces Timbre-in-Context Conditioning, which binds reference timbre cues to corresponding speech spans through the context pathway. With only **6.3B** parameters, NAVA achieves superior audio-visual synchronization and video quality, competitive audio quality, and substantially improved reference-timbre controllability.
 
 ## Demo
@@ -24,7 +31,22 @@ https://github.com/user-attachments/assets/917bafe1-c015-4b55-9814-3f94e0970710
 
 ## Quick Start
 
-After [Weight Preparation](#weight-preparation) and [Installation](#installation), two end-to-end scripts will generate a sample on 8 GPUs (with Sequence Parallel On). Both write a JSONL inline and call `inference_nava.py`; outputs land under `eval_results/`.
+**1. Install dependencies**
+
+```bash
+pip install torch torchvision torchaudio
+pip install diffusers transformers accelerate safetensors
+pip install einops scipy numpy PyYAML tqdm sentencepiece
+pip install flash-attn --no-build-isolation
+```
+
+**2. Download weights** (one command pulls `NAVA.ckpt` and all dependencies into the project root):
+
+```bash
+huggingface-cli download <org>/NAVA --local-dir ./
+```
+
+**3. Run inference** (8 GPUs with sequence parallel):
 
 ```bash
 # Example 1 — General T2AV (text-only)
@@ -34,14 +56,10 @@ bash scripts/inference.sh
 bash scripts/inference_timbre.sh
 ```
 
-Override paths via env vars when needed:
+For batch runs, custom prompts, or other modes, see [Inference](#inference). For the full weight manifest, see [Model Weights](#model-weights).
 
-```bash
-CKPT=/path/to/your.ckpt OUT_DIR=eval_results/run1 bash scripts/inference.sh
-TIMBRE_SCALE=3 SPK_WAV=/path/to/spk.wav bash scripts/inference_timbre.sh
-```
-
-For batch runs, custom prompts, or other modes, see [Inference](#inference).
+> [!TIP]
+> **For optimal generation quality, always rewrite your prompt before inference** — especially if your input is short or in English. NAVA is primarily trained on high-quality Chinese dense captions; the rewriter expands a brief description into a single-paragraph cinematic prompt that activates the model's full potential. See [Prompt Engineering](#prompt-engineering-rewrite) for the three available pathways.
 
 ## Model Architecture
 
@@ -70,38 +88,13 @@ Audio-only models are listed as *reference* only — they are dedicated speech s
   <img src="assets/seedtts-eval.png" alt="SeedTTS-Eval Results" width="100%">
 </p>
 
-## Weight Preparation
+### User Study
 
-One command pulls every weight needed for inference:
+We conduct human GSB (Win / Tie / Lose) preference studies on both T2AV and TI2AV against open-source baselines (Ovi-1.1, LTX-2.3, MoVA, daVinci). NAVA wins on both **Overall Quality** and **Audio-Visual Alignment** across all comparisons.
 
-```bash
-huggingface-cli download <org>/NAVA --local-dir ./
-```
-
-This populates the project root with `NAVA.ckpt`, `Wan2.2-TI2V-5B/`, `params/`, and `configs/` — no further setup required.
-
-### What's inside
-
-| Path | Size | Source |
-|---|---|---|
-| `NAVA.ckpt` | 24 GB | NAVA |
-| `Wan2.2-TI2V-5B/Wan2.2_VAE.pth` | 2.7 GB | mirrored from [Wan-AI/Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) |
-| `Wan2.2-TI2V-5B/models_t5_umt5-xxl-enc-bf16.pth` | 11 GB | mirrored from Wan-AI/Wan2.2-TI2V-5B |
-| `Wan2.2-TI2V-5B/google/umt5-xxl/{spiece.model,tokenizer.json}` | 21 MB | T5 tokenizer |
-| `params/LTX2/ltx-2.3-22b-dev_audio_vae.safetensors` | 348 MB | mirrored from [Lightricks/LTX-Video](https://github.com/Lightricks/LTX-Video) (LTX-2 Community License — see `params/LTX2/LICENSE`) |
-
-The LTX audio-VAE Python code is vendored under `nava_src/vendor/ltx_core/` (see its `NOTICE.md` and `LICENSE`), so no separate clone of the LTX repo is needed.
-
-The ReDimNet speaker embedder is fetched automatically via `torch.hub` on first run.
-
-## Installation
-
-```bash
-pip install torch torchvision torchaudio
-pip install diffusers transformers accelerate safetensors
-pip install einops scipy numpy PyYAML tqdm sentencepiece
-pip install flash-attn --no-build-isolation
-```
+<p align="center">
+  <img src="assets/gsb_combined.png" alt="User Study GSB Results" width="100%">
+</p>
 
 ## Inference
 
@@ -302,9 +295,19 @@ data:
   spk_emb_prob: 0.9            # Speaker embedding injection probability
 ```
 
-## Training
+## Model Weights
 
-Coming soon.
+The single `huggingface-cli download` in [Quick Start](#quick-start) pulls everything below — listed here for reference and licensing transparency.
+
+| Path | Size | Source |
+|---|---|---|
+| `NAVA.ckpt` | 24 GB | NAVA |
+| `Wan2.2-TI2V-5B/Wan2.2_VAE.pth` | 2.7 GB | mirrored from [Wan-AI/Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) |
+| `Wan2.2-TI2V-5B/models_t5_umt5-xxl-enc-bf16.pth` | 11 GB | mirrored from Wan-AI/Wan2.2-TI2V-5B |
+| `Wan2.2-TI2V-5B/google/umt5-xxl/{spiece.model,tokenizer.json}` | 21 MB | T5 tokenizer |
+| `params/LTX2/ltx-2.3-22b-dev_audio_vae.safetensors` | 348 MB | mirrored from [Lightricks/LTX-Video](https://github.com/Lightricks/LTX-Video) (LTX-2 Community License — see `params/LTX2/LICENSE`) |
+
+The LTX audio-VAE Python code is vendored under `nava_src/vendor/ltx_core/` (see its `NOTICE.md` and `LICENSE`), so no separate clone of the LTX repo is needed. The ReDimNet speaker embedder is fetched automatically via `torch.hub` on first run.
 
 ## Citation
 
