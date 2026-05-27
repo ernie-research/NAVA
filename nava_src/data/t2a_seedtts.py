@@ -76,7 +76,7 @@ class SeedTTSDatasetWithVAE(Dataset):
         self,
         meta_file: str,
         language: str = "zh",
-        audio_vae_server=None,
+        audio_vae=None,
         audio_tokens_per_sec: float = 31.25,
         audio_latent_ch: int = 20,
         use_speech_special_token: bool = False,
@@ -90,7 +90,7 @@ class SeedTTSDatasetWithVAE(Dataset):
         Args:
             meta_file (str): meta 文件路径
             language (str): 语言，"zh" 或 "en"
-            audio_vae_server: 音频 VAE server 实例
+            audio_vae: 音频 VAE server 实例
             audio_tokens_per_sec (float): 音频 token 每秒数量
             audio_latent_ch (int): 音频 latent 通道数
             use_avgen_format (bool): 是否使用 avgen 格式，在 <S>...<E> 前后加中文音视频描述
@@ -106,7 +106,7 @@ class SeedTTSDatasetWithVAE(Dataset):
         self.language = language
         self.audio_tokens_per_sec = audio_tokens_per_sec
         self.audio_latent_ch = audio_latent_ch
-        self.audio_vae_server = audio_vae_server
+        self.audio_vae = audio_vae
         self.use_speech_special_token = use_speech_special_token
         self.use_avgen_format = use_avgen_format
         self.video_caption = video_caption.strip()
@@ -188,7 +188,7 @@ class SeedTTSDatasetWithVAE(Dataset):
         Returns:
             tensor: speaker embedding [1, 192] 或 None
         """
-        if self.audio_vae_server is None:
+        if self.audio_vae is None:
             return None
 
         try:
@@ -205,7 +205,7 @@ class SeedTTSDatasetWithVAE(Dataset):
 
             rank = 0
 
-            result = self.audio_vae_server.encode(
+            result = self.audio_vae.encode(
                 query, rank=rank
             ).latent_dist.sample()
 
@@ -298,7 +298,7 @@ if __name__ == "__main__":
     dataset = SeedTTSDatasetWithVAE(
         meta_file=args.meta_file,
         language=args.language,
-        audio_vae_server=None,  # 不做编码，仅看 meta 解析
+        audio_vae=None,  # 不做编码，仅看 meta 解析
     )
     print(f"Dataset size: {len(dataset)}")
     for i, sample in enumerate(dataset.samples[:3]):

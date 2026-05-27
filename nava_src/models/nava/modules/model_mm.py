@@ -1513,7 +1513,6 @@ class WanAVModel(ModelMixin, ConfigMixin):
             ]))
 
         if self.add_spk_emb and spk_embed is not None:
-            print("activate spk embedding !!")
             spk_embeds = self.speaker_embedding(spk_embed)  # [total_spk, dim]
             B, L, D = context.shape
 

@@ -20,7 +20,7 @@ LANG="${LANG:-zh}"  # zh | en
 CKPT="${CKPT:-NAVA.ckpt}"
 CONFIG="${CONFIG:-configs/nava_seedtts.yaml}"
 OUT_DIR="${OUT_DIR:-eval_results/seedtts/${LANG}}"
-DATA_FILE="${DATA_FILE:-infer_cases/seedtts/${LANG}/meta.lst}"
+DATA_FILE="${DATA_FILE:-infer_cases/meta.lst}"
 
 MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
 MASTER_PORT="${MASTER_PORT:-29508}"

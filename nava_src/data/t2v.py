@@ -201,7 +201,7 @@ class T2VDataset(Dataset):
         height=256,
         frames=5,
         patch_size=16,
-        video_vae_server=None
+        video_vae=None
     ):
         """
         文本到图像数据集的初始化构造函数
@@ -216,7 +216,7 @@ class T2VDataset(Dataset):
         super().__init__()
 
         self.format = format
-        self.resolution = video_vae_server.resolution if video_vae_server else 480
+        self.resolution = video_vae.resolution if video_vae else 480
         self.width = width
         self.height = height
         self.frames = frames
@@ -225,7 +225,7 @@ class T2VDataset(Dataset):
         self.text_list = []
         self.save_path_list = []
         self.first_frames = []
-        self.video_vae_server = video_vae_server
+        self.video_vae = video_vae
         # self.img_list = []
 
         if format == 'json':
@@ -279,7 +279,7 @@ class T2VDataset(Dataset):
         img_latents = None
 
         if len(self.first_frames) > 0:
-            img_latents = self.video_vae_server.encode(
+            img_latents = self.video_vae.encode(
                 self.first_frames[idx],
                 rank=-1,
                 frame_length=self.frames,
@@ -322,23 +322,23 @@ class T2AVDataset(Dataset):
         patch_size=16,
         fps=16,
         audio_tokens_per_sec=31.25,
-        audio_vae_server=None,
+        audio_vae=None,
         use_speech_special_token=False,
-        video_vae_server=None
+        video_vae=None
     ):
         super().__init__()
 
         self.format = format
-        self.resolution = video_vae_server.resolution
+        self.resolution = video_vae.resolution
         self.width = width
         self.height = height
         self.frames = frames
         self.patch_size = patch_size
         self.fps = fps
         self.audio_tokens_per_sec = audio_tokens_per_sec
-        self.audio_vae_server = audio_vae_server
+        self.audio_vae = audio_vae
         self.use_speech_special_token = use_speech_special_token
-        self.video_vae_server = video_vae_server
+        self.video_vae = video_vae
 
         self.data_list = []
         self.save_path_list = []
@@ -403,7 +403,7 @@ class T2AVDataset(Dataset):
                             "bos_url": spk_wav,
                             "use_spk_emb": True,
                         }
-                        result = self.audio_vae_server.encode(query).latent_dist.sample()
+                        result = self.audio_vae.encode(query).latent_dist.sample()
                         spk_embs = result["spk_embs"]
                     sample_spk_embs.append(spk_embs)
         else:
@@ -421,7 +421,7 @@ class T2AVDataset(Dataset):
         # Per-sample i2v: encode first frame if image_path is available
         img_latents = None
         if self.first_frames[idx] is not None:
-            img_latents = self.video_vae_server.encode(
+            img_latents = self.video_vae.encode(
                 self.first_frames[idx],
                 rank=-1,
                 frame_length=self.frames,

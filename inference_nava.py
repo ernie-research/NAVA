@@ -216,13 +216,11 @@ def main():
                              "所有 rank 处理相同样本，仅 rank0 落盘。")
     parser.add_argument("--rewrite", action="store_true", default=False,
                         help="启用 prompt rewriter（默认关闭）")
-    parser.add_argument("--no_rewrite", action="store_true",
-                        help="关闭 prompt rewriter")
     parser.add_argument("--rewrite_model", type=str, default="Qwen/Qwen3-30B-A3B-Instruct-2507-FP8",
                         help="Rewriter 模型路径")
 
     args = parser.parse_args()
-    use_rewrite = args.rewrite and not args.no_rewrite
+    use_rewrite = args.rewrite
 
     # --- Setup ---
     is_ddp, rank, world_size, local_rank = setup_dist()
@@ -234,7 +232,7 @@ def main():
         rewriter = PromptRewriter(model_path=args.rewrite_model, device=f"cuda:{local_rank}")
         print(f"[Rewriter] Enabled. Model: {args.rewrite_model}")
     elif not use_rewrite:
-        print("[Rewriter] Disabled via --no_rewrite")
+        print("[Rewriter] Disabled (pass --rewrite to enable)")
 
     # --- Sequence parallel ---
     if args.use_sp:
@@ -308,32 +306,39 @@ def main():
             width=args.width,
             frames=args.frames,
             patch_size=cfg.get("spatial_downsample", 16), 
-            video_vae_server=pipe.video_vae
+            video_vae=pipe.video_vae
             # resolution=args.resolution,
             # image_path=args.image_path,
         )
     elif modality == "audio":
-        if not args.seedtts_mode:
-            raise ValueError(
-                "modality=audio currently only supports SeedTTS benchmark inference. "
-                "Pass --seedtts_mode and provide a SeedTTS meta file via --data_file."
+        if args.seedtts_mode:
+            from nava_src.data.t2a_seedtts import SeedTTSDatasetWithVAE, collate_fn
+
+            language = "en" if "/en/" in args.data_file else "zh"
+            if is_main(rank):
+                print(f"[Info] SeedTTS mode: language={language}, meta_file={args.data_file}")
+
+            ds = SeedTTSDatasetWithVAE(
+                meta_file=args.data_file,
+                language=language,
+                audio_vae=pipe.audio_vae,
+                audio_tokens_per_sec=cfg["data"].get("audio_tokens_per_sec", 31.25),
+                audio_latent_ch=cfg.get("audio_latent_ch", 20),
+                use_speech_special_token=cfg["data"].get("use_speech_special_token", False),
+                use_avgen_format=cfg.get("use_avgen_format", False)
             )
-        from nava_src.data.t2a_seedtts import SeedTTSDatasetWithVAE, collate_fn
+        else:
+            from nava_src.data.t2a import T2ADataset, collate_fn
 
-        # 从 meta 文件路径推断语言
-        language = "en" if "/en/" in args.data_file else "zh"
-        if is_main(rank):
-            print(f"[Info] SeedTTS mode: language={language}, meta_file={args.data_file}")
-
-        ds = SeedTTSDatasetWithVAE(
-            meta_file=args.data_file,
-            language=language,
-            audio_vae_server=pipe.audio_vae,
-            audio_tokens_per_sec=cfg["data"].get("audio_tokens_per_sec", 31.25),
-            audio_latent_ch=cfg.get("audio_latent_ch", 20),
-            use_speech_special_token=cfg["data"].get("use_speech_special_token", False),
-            use_avgen_format=cfg.get("use_avgen_format", False)
-        )
+            ds = T2ADataset(
+                data_file=args.data_file,
+                format=args.data_format,
+                duration=args.duration,
+                audio_tokens_per_sec=cfg["data"].get("audio_tokens_per_sec", 31.25),
+                audio_latent_ch=cfg.get("audio_latent_ch", 20),
+                audio_vae=pipe.audio_vae,
+                use_speech_special_token=cfg["data"].get("use_speech_special_token", False),
+            )
     elif modality == "audio_video":
         from nava_src.data.t2v import T2AVDataset
         from nava_src.data.t2v import collate_fn
@@ -346,9 +351,9 @@ def main():
             patch_size=cfg.get("spatial_downsample", 16), 
             fps=cfg["data"].get("video_fps", 24),
             audio_tokens_per_sec=cfg["data"].get("audio_tokens_per_sec", 31.25),
-            audio_vae_server=pipe.audio_vae,
+            audio_vae=pipe.audio_vae,
             use_speech_special_token=cfg["data"].get("use_speech_special_token", False),
-            video_vae_server=pipe.video_vae
+            video_vae=pipe.video_vae
             # resolution=args.resolution,
             # image_path=args.image_path,
         )

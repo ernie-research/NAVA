@@ -56,12 +56,32 @@ bash scripts/inference.sh
 
 # Example 2 — I2AV + Timbre Control (first-frame image + reference voice)
 bash scripts/inference_timbre.sh
+
+# Example 3 — T2A (audio-only, with or without timbre reference)
+bash scripts/inference_t2a.sh
 ```
 
 For batch runs, custom prompts, or other modes, see [Inference](#inference). For the full weight manifest, see [Model Weights](#model-weights).
 
+**4. Batch rewrite your prompts** (recommended before any inference):
+
+```bash
+# Start the vLLM rewrite server once (stays in the background)
+cd pe_src && bash start_server.sh --gpu 0 && cd ..
+
+# Rewrite — input is one prompt per line, output is line-aligned
+python pe_src/rewrite.py \
+    --input my_prompts.txt \
+    --output my_prompts_rewritten.txt \
+    --concurrency 32
+
+# Convert to JSONL and run
+awk '{print "{\"prompt\": \""$0"\"}"}' my_prompts_rewritten.txt > my_prompts.jsonl
+DATA_FILE=my_prompts.jsonl bash scripts/inference.sh
+```
+
 > [!TIP]
-> **For optimal generation quality, always rewrite your prompt before inference** — especially if your input is short or in English. NAVA is primarily trained on high-quality Chinese dense captions; the rewriter expands a brief description into a single-paragraph cinematic prompt that activates the model's full potential. See [Prompt Engineering](#prompt-engineering-rewrite) for the three available pathways.
+> **Always rewrite prompts before inference.** NAVA is trained on high-quality Chinese dense captions; the rewriter expands a short description into a single-paragraph cinematic prompt with explicit scene / motion / audio design — the format that activates the model's full potential. For single prompts or interactive use, see [Prompt Engineering](#prompt-engineering-rewrite).
 
 ## Model Architecture
 
@@ -158,6 +178,31 @@ SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --gen_turn 1 \
     --use_sp
 ```
+
+### T2A (Audio-Only, with optional Timbre Control)
+
+Generate audio without video using the same NAVA checkpoint. Supports both pure sound-design prompts and timbre-controlled speech — the distinction is simply whether `spk_wavs` is present in the JSONL entry.
+
+```jsonl
+{"prompt": "清晨山间，远处溪流潺潺，鸟鸣声此起彼伏。画面中没有人物对白，也没有任何旁白。"}
+{"prompt": "...<S>Hello, it's great to meet you.<E>...", "spk_wavs": ["/path/to/spk.wav"]}
+{"prompt": "...<S>First speaker line.<E>...<S>Second speaker line.<E>...", "spk_wavs": ["/path/spk1.wav", "/path/spk2.wav"]}
+```
+
+`spk_wavs[i]` binds to the i-th `<S>...<E>` span in order. Omit `spk_wavs` entirely for pure scene-audio generation.
+
+```bash
+bash scripts/inference_t2a.sh
+
+# Override defaults:
+DURATION=8.0 \
+DATA_FILE=/path/to/prompts.jsonl \
+OUT_DIR=eval_results/my_t2a \
+TIMBRE_SCALE=3.0 \
+bash scripts/inference_t2a.sh
+```
+
+Outputs land at `$OUT_DIR/{save_name}-0.wav`. Config: `configs/nava_seedtts.yaml` (`modality: audio`). The `--timbre_cfg` flag is always on — it has no effect when `spk_wavs` is absent.
 
 ### SeedTTS Benchmark (Audio-Only)
 
@@ -315,13 +360,16 @@ data:
 
 The single `huggingface-cli download` in [Quick Start](#quick-start) pulls everything below — listed here for reference and licensing transparency.
 
-| Path | Size | Source |
-|---|---|---|
-| `NAVA.ckpt` | 24 GB | NAVA |
-| `Wan2.2-TI2V-5B/Wan2.2_VAE.pth` | 2.7 GB | mirrored from [Wan-AI/Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) |
-| `Wan2.2-TI2V-5B/models_t5_umt5-xxl-enc-bf16.pth` | 11 GB | mirrored from Wan-AI/Wan2.2-TI2V-5B |
-| `Wan2.2-TI2V-5B/google/umt5-xxl/{spiece.model,tokenizer.json}` | 21 MB | T5 tokenizer |
-| `params/LTX2/ltx-2.3-22b-dev_audio_vae.safetensors` | 348 MB | mirrored from [Lightricks/LTX-Video](https://github.com/Lightricks/LTX-Video) (LTX-2 Community License — see `params/LTX2/LICENSE`) |
+| Path | Description |
+|---|---|
+| `NAVA.ckpt` | 24 GB — NAVA model weights |
+| `nava.yaml` | Inference config (drop-in replacement for `configs/nava.yaml`) |
+| `config.json` | Model architecture config |
+| `example_prompts.jsonl` | Example JSONL prompts covering T2AV, T2A, timbre control, and I2AV |
+| `Wan2.2-TI2V-5B/Wan2.2_VAE.pth` | 2.7 GB — mirrored from [Wan-AI/Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) |
+| `Wan2.2-TI2V-5B/models_t5_umt5-xxl-enc-bf16.pth` | 11 GB — mirrored from Wan-AI/Wan2.2-TI2V-5B |
+| `Wan2.2-TI2V-5B/google/umt5-xxl/{spiece.model,tokenizer.json}` | 21 MB — T5 tokenizer |
+| `params/LTX2/ltx-2.3-22b-dev_audio_vae.safetensors` | 348 MB — mirrored from [Lightricks/LTX-Video](https://github.com/Lightricks/LTX-Video) (LTX-2 Community License — see `params/LTX2/LICENSE`) |
 
 The LTX audio-VAE Python code is vendored under `nava_src/vendor/ltx_core/` (see its `NOTICE.md` and `LICENSE`), so no separate clone of the LTX repo is needed. The ReDimNet speaker embedder is fetched automatically via `torch.hub` on first run.
 
