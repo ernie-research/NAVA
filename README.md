@@ -28,6 +28,7 @@ https://github.com/user-attachments/assets/a02cc83d-b5a3-42ac-9a77-952e0c3bd0fe
 - **720p in ~1 Minute** — Generate synchronized 720p audio-video in about one minute on 8 GPUs with Ulysses sequence parallelism.
 - **Native Stereo Audio** — Jointly generate scene sounds and speech with video, no post-hoc vocoder alignment required.
 - **Multi-Timbre Voice Control** — Bind reference WAVs to speech spans for precise per-speaker voice identity.
+- **Powerful TTS Synthesis** — High-quality speech generation including long, complex sentences in English; limited other languages' support.
 - **Text-Driven Camera Control** — Specify shot composition, camera motion, and pacing directly in the prompt.
 - **Flexible Aspect Ratios** — Generate landscape, portrait, and square videos from the same checkpoint.
 
