@@ -12,28 +12,6 @@ from .utils.mask import make_transfusion_attention_mask
 import numpy as np
 import os
 import json
-# import atexit
-
-
-# TOTAL_ATTN_TIME_MS = 0.0
-
-# # =======================================================
-# # 【新增】定义一个函数，专门用于在程序临死前打印结果
-# # =======================================================
-# def print_final_stats():
-#     # 为了防止多卡训练时所有进程都打印，我们可以只让 Rank 0 打印
-#     # 如果你的环境没有 RANK 环境变量，可以去掉这个 if 判断，大家一起打也无所谓
-#     if os.environ.get("RANK", "0") == "0":
-#         print("\n" + "█" * 60)
-#         print(f"【程序结束自动统计】")
-#         print(f" Attention 内核累计耗时: {TOTAL_ATTN_TIME_MS:.2f} ms")
-#         print(f" Attention 内核累计耗时: {TOTAL_ATTN_TIME_MS / 1000:.4f} s")
-#         print("█" * 60 + "\n")
-
-# # =======================================================
-# # 【新增】注册这个函数，告诉 Python：“挂掉之前运行它”
-# # =======================================================
-# atexit.register(print_final_stats)
 
 def save_bias_to_txt(bias: torch.Tensor, tag: str = "bias_debug"):
     """
@@ -208,35 +186,16 @@ class NAVA(nn.Module):
                     video_config = json.load(f)
                 video_latent_ch = video_config["in_dim"]
         from_meta = config.get("init_from_meta", False)
-        if not self.use_mmdit_model:
-            if from_meta:
-                with torch.device("meta"):
-                    backbone = FusionModel(video_config, audio_config,
-                                        gradient_checkpointing=config["model"].get("gradient_checkpointing", False),
-                                        gradient_checkpointing_offload=config["model"].get("gradient_checkpointing_offload", False),
-                                        add_spk_emb=config["data"].get("add_spk_emb", False),
-                                        cross_gate=config["model"].get("cross_gate", False),
-                                        cross_1d_rope=config["model"].get("cross_1d_rope", False))
         
-            else:
-                backbone = FusionModel(video_config, audio_config,
-                                        gradient_checkpointing=config["model"].get("gradient_checkpointing", False),
-                                        gradient_checkpointing_offload=config["model"].get("gradient_checkpointing_offload", False),
-                                        add_spk_emb=config["data"].get("add_spk_emb", False),
-                                        cross_gate=config["model"].get("cross_gate", False),
-                                        cross_1d_rope=config["model"].get("cross_1d_rope", False))
-            params_all = sum(p.numel() for p in backbone.parameters())
-            print(f"Score model (Fusion) all parameters:{params_all}")
-        else:
-            backbone = WanAVModel(
-                **joint_config,
-                gradient_checkpointing=config["model"].get("gradient_checkpointing", False),
-                gradient_checkpointing_offload=config["model"].get("gradient_checkpointing_offload", False),
-                gradient_checkpoint_every_n=config["model"].get("gradient_checkpoint_every_n", 1),
-                add_spk_emb=config["data"].get("add_spk_emb", False),
-                no_split_norm_ffn=config.get("no_split_norm_ffn", False))
-            params_all = sum(p.numel() for p in backbone.parameters())
-            print(f"Score model (MMDIT) all parameters:{params_all}")
+        backbone = WanAVModel(
+            **joint_config,
+            gradient_checkpointing=config["model"].get("gradient_checkpointing", False),
+            gradient_checkpointing_offload=config["model"].get("gradient_checkpointing_offload", False),
+            gradient_checkpoint_every_n=config["model"].get("gradient_checkpoint_every_n", 1),
+            add_spk_emb=config["data"].get("add_spk_emb", False),
+            no_split_norm_ffn=config.get("no_split_norm_ffn", False))
+        params_all = sum(p.numel() for p in backbone.parameters())
+        print(f"Score model (MMDIT) all parameters:{params_all}")
 
         checkpoint_path = config["model"].get("checkpoint_path", None)
         if checkpoint_path:

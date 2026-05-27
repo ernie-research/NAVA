@@ -313,35 +313,27 @@ def main():
             # image_path=args.image_path,
         )
     elif modality == "audio":
-        if args.seedtts_mode:
-            # SeedTTS 模式
-            from nava_src.data.t2a_seedtts import SeedTTSDatasetWithVAE, collate_fn
-
-            # 从 meta 文件路径推断语言
-            language = "en" if "/en/" in args.data_file else "zh"
-            if is_main(rank):
-                print(f"[Info] SeedTTS mode: language={language}, meta_file={args.data_file}")
-
-            ds = SeedTTSDatasetWithVAE(
-                meta_file=args.data_file,
-                language=language,
-                audio_vae_server=pipe.audio_vae,
-                audio_tokens_per_sec=cfg["data"].get("audio_tokens_per_sec", 31.25),
-                audio_latent_ch=cfg.get("audio_latent_ch", 20),
-                use_speech_special_token=cfg["data"].get("use_speech_special_token", False),
-                use_avgen_format=cfg.get("use_avgen_format", False)
+        if not args.seedtts_mode:
+            raise ValueError(
+                "modality=audio currently only supports SeedTTS benchmark inference. "
+                "Pass --seedtts_mode and provide a SeedTTS meta file via --data_file."
             )
-        else:
-            # 正常 T2A 模式
-            from nava_src.data.t2a import T2ADataset
-            from nava_src.data.t2a import collate_fn
-            ds = T2ADataset(
-                data_file=args.data_file,
-                format=args.data_format,
-                duration=args.duration,
-                audio_vae_server=pipe.audio_vae,
-                use_speech_special_token=cfg["data"].get("use_speech_special_token", False)
-            )
+        from nava_src.data.t2a_seedtts import SeedTTSDatasetWithVAE, collate_fn
+
+        # 从 meta 文件路径推断语言
+        language = "en" if "/en/" in args.data_file else "zh"
+        if is_main(rank):
+            print(f"[Info] SeedTTS mode: language={language}, meta_file={args.data_file}")
+
+        ds = SeedTTSDatasetWithVAE(
+            meta_file=args.data_file,
+            language=language,
+            audio_vae_server=pipe.audio_vae,
+            audio_tokens_per_sec=cfg["data"].get("audio_tokens_per_sec", 31.25),
+            audio_latent_ch=cfg.get("audio_latent_ch", 20),
+            use_speech_special_token=cfg["data"].get("use_speech_special_token", False),
+            use_avgen_format=cfg.get("use_avgen_format", False)
+        )
     elif modality == "audio_video":
         from nava_src.data.t2v import T2AVDataset
         from nava_src.data.t2v import collate_fn

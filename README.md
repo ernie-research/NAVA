@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://ernie-research.github.io/NAVA"><img src="https://img.shields.io/badge/Project-Page-1e88e5?style=flat-square&logo=googlechrome&logoColor=white" alt="Project Page"></a>
   <a href="https://arxiv.org/abs/XXXX.XXXXX"><img src="https://img.shields.io/badge/arXiv-Paper-B31B1B?style=flat-square&logo=arxiv&logoColor=white" alt="arXiv"></a>
-  <a href="https://huggingface.co/ernie-research/NAVA"><img src="https://img.shields.io/badge/%F0%9F%A4%97_HuggingFace-Models-FFD21E?style=flat-square" alt="HuggingFace Models"></a>
+  <a href="https://huggingface.co/robingg1/NAVA"><img src="https://img.shields.io/badge/%F0%9F%A4%97_HuggingFace-Models-FFD21E?style=flat-square" alt="HuggingFace Models"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-4c1?style=flat-square" alt="License"></a>
 </p>
 
@@ -87,12 +87,12 @@ NAVA achieves the best AV synchronization (Sync-C / Sync-D / IB) and video quali
 Audio-only models are listed as *reference* only — they are dedicated speech systems and not directly comparable. Among joint audio-video models, NAVA delivers speech quality close to dedicated audio-only systems.
 
 <p align="center">
-  <img src="assets/seedtts-eval.png" alt="SeedTTS-Eval Results" width="100%">
+  <img src="assets/seedtts-eval.png" alt="SeedTTS Evaluation Results" width="100%">
 </p>
 
 ### User Study
 
-We conduct human GSB (Win / Tie / Lose) preference studies on both T2AV and TI2AV against open-source baselines (Ovi-1.1, LTX-2.3, MoVA, daVinci). NAVA wins on both **Overall Quality** and **Audio-Visual Alignment** across all comparisons.
+We conduct human GSB (Win / Tie / Lose) preference studies on both T2AV and TI2AV against open-source baselines (Ovi-1.1, LTX-2.3, MoVA, daVinci). NAVA achieves competitive **Overall Quality** across all comparisons and wins on **Audio-Visual Alignment** against all baselines.
 
 <p align="center">
   <img src="assets/gsb_combined.png" alt="User Study GSB Results" width="100%">
@@ -158,6 +158,20 @@ SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --gen_turn 1 \
     --use_sp
 ```
+
+### SeedTTS Benchmark (Audio-Only)
+
+Evaluate zero-shot speech synthesis on the [SeedTTS test set](https://github.com/BytedanceSpeech/seed-tts-eval). Drop the official testset under `infer_cases/seedtts/{zh,en}/` (see [`infer_cases/seedtts/README.md`](infer_cases/seedtts/README.md) for the expected layout), then:
+
+```bash
+# Chinese split (default)
+bash scripts/inference_seedtts.sh
+
+# English split
+LANG=en bash scripts/inference_seedtts.sh
+```
+
+Each line of `meta.lst` is `utt_id|prompt_text|prompt_wav|infer_text`; outputs land at `eval_results/seedtts/{lang}/{utt_id}.wav`. Uses `configs/nava_seedtts.yaml` (audio-only) and runs the same NAVA checkpoint with `--seedtts_mode --timbre_cfg` enabled.
 
 ### Gradio Interactive Demo (SP=8)
 
@@ -326,7 +340,7 @@ If you find NAVA useful in your research, please cite:
 
 ## Acknowledgements
 
-NAVA builds on excellent open-source work — thanks to [Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B), [LTX-Video](https://github.com/Lightricks/LTX-Video), [ReDimNet](https://github.com/IDRnD/ReDimNet), [Qwen3](https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507), and [Ovi](https://github.com/character-ai/Ovi).
+We would like to thank the contributors to [Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B), [LTX-Video](https://github.com/Lightricks/LTX-Video), [ReDimNet](https://github.com/IDRnD/ReDimNet), [Qwen3](https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507), and [Ovi](https://github.com/character-ai/Ovi) for their great open-source work, which is helpful to this project.
 
 ## NAVA Star History
 

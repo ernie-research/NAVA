@@ -17,6 +17,7 @@ SeedTTS 数据格式 (meta.lst):
     - 目标音频长度 = (目标文本长度 / 参考文本长度) * 参考音频时长 * audio_tokens_per_sec
 """
 import os
+from typing import Optional
 from torch.utils.data import Dataset
 import torch
 
@@ -80,6 +81,7 @@ class SeedTTSDatasetWithVAE(Dataset):
         audio_latent_ch: int = 20,
         use_speech_special_token: bool = False,
         use_avgen_format: bool = False,
+        audio_base_url: Optional[str] = None,
         video_caption: str = "一位金色卷发、身穿红色西装外套的人在虚化处理的演播室环境中静止发言，神情严肃专注，正对镜头。画面中央突出人物主体，背景透过窗户隐约可见城市景观，整体色调柔和，以紫蓝为主。光线均匀，照亮人物面部与上半身，摄像机固定，采用中近景拍摄，确保面部表情与上半身清晰可见。",
         audio_caption_prefix: str = "音频中只有一位说话人，以平稳的语调陈述了一则新闻内容，语速正常，发音清晰。",
         audio_caption_suffix: str = "除了人声之外，背景中没有其他明显的声音。",
@@ -92,6 +94,9 @@ class SeedTTSDatasetWithVAE(Dataset):
             audio_tokens_per_sec (float): 音频 token 每秒数量
             audio_latent_ch (int): 音频 latent 通道数
             use_avgen_format (bool): 是否使用 avgen 格式，在 <S>...<E> 前后加中文音视频描述
+            audio_base_url (str): prompt_wav 基础路径。绝对路径 / `bos://` URL 不受影响；
+                相对路径会拼到 ``{audio_base_url}/{language}/{prompt_wav}``。
+                默认取 meta 文件父目录的父目录（即假定 ``<root>/<lang>/meta.lst`` 布局）。
             video_caption (str): 视频描述，拼在最前面
             audio_caption_prefix (str): <S> 前的音频描述
             audio_caption_suffix (str): <E> 后的背景音描述
@@ -108,8 +113,11 @@ class SeedTTSDatasetWithVAE(Dataset):
         self.audio_caption_prefix = audio_caption_prefix.strip()
         self.audio_caption_suffix = audio_caption_suffix.strip()
 
-        # bos_url 基础路径
-        self.audio_base_url = "bos://bj-copy-secret/wangguan/eval_audios/seedtts_testset"
+        # prompt_wav 解析根目录：默认从 meta_file 推断（假设 <root>/<lang>/meta.lst 布局）
+        if audio_base_url is None:
+            meta_dir = os.path.dirname(os.path.abspath(meta_file))
+            audio_base_url = os.path.dirname(meta_dir)
+        self.audio_base_url = audio_base_url
 
         self.samples = []
 
@@ -184,14 +192,14 @@ class SeedTTSDatasetWithVAE(Dataset):
             return None
 
         try:
-            bos_url = audio_path
+            resolved_path = audio_path
 
-            # 如果不是完整 bos 路径，则使用 base_url 构造
-            if not bos_url.startswith("bos://"):
-                bos_url = os.path.join(self.audio_base_url, self.language, audio_path)
+            # 绝对路径 / bos:// URL 不动；相对路径按 {audio_base_url}/{language}/{audio_path} 拼接
+            if not (resolved_path.startswith("bos://") or os.path.isabs(resolved_path)):
+                resolved_path = os.path.join(self.audio_base_url, self.language, audio_path)
 
             query = {
-                "bos_url": bos_url,
+                "bos_url": resolved_path,
                 "use_spk_emb": True,  # 提取 speaker embedding
             }
 
@@ -279,33 +287,19 @@ class SeedTTSDatasetWithVAE(Dataset):
 
 
 if __name__ == "__main__":
-    # 测试代码
-    print("Testing SeedTTS Dataset...")
-    from nava_src.vae.vae_server import VAEServerAdapter
+    # 简单 sanity check：仅解析 meta，不连接 VAE server。
+    import argparse
 
-    audio_vae_server = VAEServerAdapter(
-        modality="audio", 
-        scaling_factor=1.0,
-        shift_factor=0.0,
-        server_list="nava_src/data/server/audio_server.list",
-        server_port=4431,
-    )
+    parser = argparse.ArgumentParser(description="Inspect a SeedTTS meta.lst file")
+    parser.add_argument("meta_file", help="Path to meta.lst (utt_id|prompt_text|prompt_wav|infer_text)")
+    parser.add_argument("--language", default="zh", choices=["zh", "en"])
+    args = parser.parse_args()
 
-    # 测试数据集
     dataset = SeedTTSDatasetWithVAE(
-        meta_file="benchmark/audio/seedtts/zh/meta.lst",
-        language="zh",
-        audio_vae_server=audio_vae_server,
+        meta_file=args.meta_file,
+        language=args.language,
+        audio_vae_server=None,  # 不做编码，仅看 meta 解析
     )
-
     print(f"Dataset size: {len(dataset)}")
-
-    # 打印前 3 个样本
-    for i in range(min(3, len(dataset))):
-        sample = dataset[i]
-        print(f"\nSample {i}:")
-        print(f"  utt_id: {sample['utt_id']}")
-        print(f"  prompt_text: {sample['prompt_text']}")
-        print(f"  prompt_audio_path: {sample['prompt_audio_path']}")
-        print(f"  captions (target_text): {sample['captions']}")
-        print(f"  save_path: {sample['save_path']}")
+    for i, sample in enumerate(dataset.samples[:3]):
+        print(f"  [{i}] utt_id={sample['utt_id']}, prompt_wav={sample['prompt_wav']}")

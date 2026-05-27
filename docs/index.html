@@ -262,7 +262,6 @@ tbody tr.ours td:first-child::before{
 tbody tr.ref td{
   color:var(--text-3);
   background:var(--paper-2);
-  font-style:italic;
 }
 tbody tr.ref:hover td{background:var(--paper-2)}
 .ref-tag{
@@ -569,12 +568,19 @@ footer{
           <tr><th style="text-align:left;padding-left:20px">Category</th><th style="text-align:left">Model</th><th>WER ↓</th><th>Speaker Similarity ↑</th></tr>
         </thead>
         <tbody>
-          <tr class="ref"><td rowspan="2" style="text-align:left;padding-left:20px">Audio Only<span class="ref-tag">reference</span></td><td style="text-align:left">CosyVoice</td><td>4.29</td><td>60.9</td></tr>
+          <tr class="ref"><td rowspan="3" style="text-align:left;padding-left:20px">Audio-Only<span class="ref-tag">reference</span></td><td style="text-align:left">CosyVoice</td><td>4.29</td><td>60.9</td></tr>
+          <tr class="ref"><td style="text-align:left">CosyVoice2</td><td>2.57</td><td>65.2</td></tr>
           <tr class="ref"><td style="text-align:left">Qwen2.5-Omni</td><td>2.72</td><td>63.2</td></tr>
-          <tr><td rowspan="2" style="text-align:left;padding-left:20px;color:var(--text-2)">Audio-Video Joint</td><td style="text-align:left">DreamID-Omni</td><td>33.44</td><td>34.1</td></tr>
-          <tr class="ours"><td style="text-align:left">NAVA <span style="font-weight:400;color:var(--text-3);font-size:.82rem">(ours)</span></td><td><b>5.81</b></td><td><b>62.4</b></td></tr>
+          <tr><td rowspan="2" style="text-align:left;padding-left:20px;color:var(--text-2)">Audio-Video</td><td style="text-align:left">DreamID-Omni</td><td>31.76</td><td>35.7</td></tr>
+          <tr class="ours"><td style="text-align:left">NAVA <span style="font-weight:400;color:var(--text-3);font-size:.82rem">(ours)</span></td><td><b>4.20</b></td><td><b>66.7</b></td></tr>
         </tbody>
       </table>
+    </div>
+
+    <p class="tbl-title" style="margin-top:56px"><span class="num">Table 3.</span>User Study</p>
+    <p class="tbl-sub">We conduct human GSB (Win / Tie / Lose) preference studies on both T2AV and TI2AV against open-source baselines (Ovi-1.1, LTX-2.3, MoVA, daVinci). NAVA achieves competitive <b>Overall Quality</b> across all comparisons and wins on <b>Audio-Visual Alignment</b> against all baselines.</p>
+    <div class="figure" style="margin-top:14px;max-width:1100px">
+      <img src="assets/gsb_combined.png" alt="User study GSB results">
     </div>
   </div>
 </section>

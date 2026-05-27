@@ -1,0 +1,67 @@
+
+# Inference-only config for SeedTTS benchmark evaluation.
+# Reuses the same NAVA checkpoint as configs/nava.yaml but switches the
+# modality to audio-only and disables AV-specific knobs.
+
+model_type: NAVA
+modality: audio  # [audio, video, image, audio_video]
+
+# 模型
+model_id: /root/paddlejob/workspace/Qwen3-1.7B
+use_bf16: true
+audio_latent_ch: 128
+video_latent_ch: 48
+
+patch_size: 2
+image_size: 960
+log_width: 1280
+log_height: 704
+lambda_ddpm: 1.0
+
+pipeline: nava_src.pipeline_nava.AudioVideoPipeline
+scheduler_personalized: true
+scheduler_unipc: true
+use_loss_reweight: true
+attention_only: false
+
+use_mmdit_model: true
+audio_loss_coff: 0.2
+vision_loss_coff: 1
+
+# 推理
+audio_guidance_scale: 2.0
+audio_align_guidance_scale: 2.0
+align_3d_cfg: false
+no_split_norm_ffn: true
+timbre_cfg: true
+timbre_align_guidance_scale: 3.0
+
+# 数据
+data:
+  audio_tokens_per_sec: 25
+
+  use_server: False
+  audio_scaling_factor: 1.0
+  audio_shift_factor: 0.0
+  video_scaling_factor: 1.0
+  video_shift_factor: 0.0
+
+  add_spk_emb: true
+  spk_emb_prob: 0.9
+  use_speech_special_token: false
+
+model:
+  shift: 5
+  shift_audio: 5
+  num_train_timesteps: 1000
+  gradient_checkpointing: false
+  cross_gate: false
+  cross_1d_rope: false
+
+  joint_config: nava_src/models/nava/configs/model/dit/NAVA_6B.json
+  ckpt_dir: ./
+  audio_vae_ckpt_dir: ./huggingface_upload/params
+
+seed: 42
+flow: true
+amp_dtype: bf16

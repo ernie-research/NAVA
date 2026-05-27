@@ -41,47 +41,6 @@ def find_ratio(image_path, resolution=640):
     else:
         raise ValueError("resolution must be 640 or 960")
 
-def upload_bos(image_path, resolution):
-    image_path = image_path  # 你的图片路径
-    height, width = find_ratio(image_path, resolution=resolution)
-    output_video = os.path.split(image_path)[-1] + "bos.mp4"
-
-    # 确保图片路径存在
-    if not os.path.exists(image_path):
-        print(f"Error: {image_path} not found.")
-    else:
-        # 构造 FFmpeg 命令
-        command = [
-            'ffmpeg',
-            '-y',
-            '-loop', '1',
-            '-i', image_path,
-            '-vf', f'scale={width}:{height}:flags=lanczos+accurate_rnd+full_chroma_int',
-            '-vcodec', 'libx264',
-            '-crf', '8',
-            '-t', '0.0416',
-            '-pix_fmt', 'yuv444p',
-            output_video
-        ]
-
-        try:
-            subprocess.run(command, check=True)
-            print(f"Successfully converted {image_path} to {output_video}")
-        except subprocess.CalledProcessError as e:
-            print(f"FFmpeg Error: {e}")
-
-    command =  [
-        "bcecmd",
-        "bos",
-        "cp",
-        output_video,
-        "bos://bj-copy-secret/jilongbin/Encryption/"
-    ]
-    subprocess.run(command, check=True)
-    bos_path = f"bos://bj-copy-secret/jilongbin/Encryption/{output_video}"
-    print(bos_path)
-    return bos_path
-
 def collate_fn(batch, is_packing=False):
     """
     - 使用 tokenizer 的 pad_token_id（如果提供），否则 0
