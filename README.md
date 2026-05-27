@@ -103,7 +103,7 @@ NAVA achieves the best AV synchronization (Sync-C / Sync-D / IB) and video quali
   <img src="assets/verse-bench.png" alt="VerseBench Results" width="100%">
 </p>
 
-### Timbre-Control Speech Performance
+### Timbre-Control Speech Performance (SeedTTS-Eval-EN)
 
 Audio-only models are listed as *reference* only — they are dedicated speech systems and not directly comparable. Among joint audio-video models, NAVA delivers speech quality close to dedicated audio-only systems.
 
