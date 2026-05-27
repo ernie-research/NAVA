@@ -326,16 +326,7 @@ If you find NAVA useful in your research, please cite:
 
 ## Acknowledgements
 
-NAVA is built on top of excellent open-source work:
-
-- **[Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B)** — base video DiT and Causal 3D VAE
-- **[LTX-Video](https://github.com/Lightricks/LTX-Video)** — Audio VAE (LTX 2.3)
-- **[BigVGAN](https://github.com/NVIDIA/BigVGAN)** — neural vocoder
-- **[umt5-xxl](https://huggingface.co/google/umt5-xxl)** — multilingual T5 text encoder
-- **[ReDimNet](https://github.com/IDRnD/ReDimNet)** — speaker embedding extractor
-- **[Qwen3](https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507)** — prompt rewriter backbone
-
-We also thank the open-source community for releasing strong baselines including **Ovi**, **MOVA**, **Davinci** and **LTX**, which made fair benchmarking possible.
+NAVA builds on excellent open-source work — thanks to [Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B), [LTX-Video](https://github.com/Lightricks/LTX-Video), [ReDimNet](https://github.com/IDRnD/ReDimNet), [Qwen3](https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507), and [Ovi](https://github.com/character-ai/Ovi).
 
 ## NAVA Star History
 
