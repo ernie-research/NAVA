@@ -8,7 +8,11 @@ NAVA is a Native Audio-Visual Alignment framework that formulates joint audio-vi
 
 ## Demo
 
-<video src="https://raw.githubusercontent.com/ernie-research/NAVA/main/demo/nava_demo_git.mp4" controls width="100%"></video>
+<div align="center">
+
+https://github.com/user-attachments/assets/917bafe1-c015-4b55-9814-3f94e0970710
+
+</div>
 
 ## Features
 
