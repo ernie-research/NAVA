@@ -49,18 +49,28 @@ pip install flash-attn --no-build-isolation
 huggingface-cli download robingg1/NAVA --local-dir ./
 ```
 
-**3. Run inference** (8 GPUs with sequence parallel):
+**3. Run inference** (8 GPUs with sequence parallel) — first pick the script for your **task**:
 
 ```bash
-# Example 1 — General T2AV (text-only)
+# General T2AV (text-only)
 bash scripts/inference.sh
 
-# Example 2 — I2AV + Timbre Control (first-frame image + reference voice)
+# I2AV + Timbre Control (first-frame image + reference voice)
 bash scripts/inference_timbre.sh
 
-# Example 3 — T2A (audio-only, with or without timbre reference)
+# T2A (audio-only, with or without timbre reference)
 bash scripts/inference_t2a.sh
 ```
+
+The three scripts above keep the full model resident on GPU and require **80 GB peak VRAM**. If your hardware can't afford that, two extra scripts demonstrate how to trade speed for VRAM — copy the relevant flags (`--t5_offload`, `--group_offload`, `--vae_tiling`, etc.) into the task script of your choice:
+
+| Reference script | Peak VRAM | Speed | What it offloads |
+|---|---|---|---|
+| `scripts/inference.sh` (baseline) | **80 GB** | **1 s / step** | Nothing — full model resident on GPU throughout |
+| `scripts/inference_offload_t5.sh` | **48 GB** | **1 s / step** | T5 text encoder (~11 GB) moved to CPU after text encoding; zero cost during denoising |
+| `scripts/inference_group_offload_t5.sh` | **42 GB** | **3.5 s / step** | T5 offload + DiT backbone blocks paged CPU↔GPU one group at a time (pinned memory, async stream) + VAE spatial tiling (decode one 22×40 latent tile at a time, blend on CPU; latent is 44×80 for 704×1280) |
+
+All numbers measured at 704×1280, 37 frames, 50 steps, **8×H100** with sequence parallel. `inference_group_offload_t5.sh` exposes `OFFLOAD_GROUP_SIZE` (default `10`, range `1–30`) — smaller values keep fewer DiT blocks on GPU simultaneously, lowering peak VRAM in exchange for more CPU↔GPU transfers per step. Pass it as an env var when launching the script.
 
 For batch runs, custom prompts, or other modes, see [Inference](#inference). For the full weight manifest, see [Model Weights](#model-weights).
 

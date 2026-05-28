@@ -5,7 +5,7 @@ import torch
 import torch.amp as amp
 import torch.nn as nn
 import torch.nn.functional as F
-from einops import rearrange
+from einops import rearrange, repeat
 
 __all__ = [
     "Wan2_2_VAE",
@@ -809,7 +809,7 @@ class WanVAE_(nn.Module):
         self.clear_cache()
         return mu
 
-    def decode(self, z, scale):
+    def decode(self, z, scale, cpu_offload=False):
         self.clear_cache()
         if isinstance(scale[0], torch.Tensor):
             z = z / scale[1].view(1, self.z_dim, 1, 1, 1) + scale[0].view(
@@ -827,13 +827,15 @@ class WanVAE_(nn.Module):
                     feat_idx=self._conv_idx,
                     first_chunk=True,
                 )
+                if cpu_offload:
+                    out = out.cpu()
             else:
                 out_ = self.decoder(
                     x[:, :, i:i + 1, :, :],
                     feat_cache=self._feat_map,
                     feat_idx=self._conv_idx,
                 )
-                out = torch.cat([out, out_], 2)
+                out = torch.cat([out, out_.cpu() if cpu_offload else out_], 2)
         out = unpatchify(out, patch_size=2)
         self.clear_cache()
         return out
@@ -1010,6 +1012,10 @@ class Wan2_2_VAE:
             device=device,
         )
         self.scale = [mean, 1.0 / std]
+        # Encoder: patchify(2x) + CNN(8x) = 16x total spatial downsampling.
+        # Decoder (inverse): CNN(8x) + unpatchify(2x) = 16x total upsampling.
+        # For 704×1280 input, latent is 44×80 (= 704/16, 1280/16).
+        self.upsampling_factor = 16
 
         # init model
         self.model = (
@@ -1050,13 +1056,79 @@ class Wan2_2_VAE:
             logging.info(e)
             return None
 
-    def wrapped_decode(self, zs):
+    def build_1d_mask(self, length, left_bound, right_bound, border_width):
+        x = torch.ones((length,))
+        if not left_bound:
+            x[:border_width] = (torch.arange(border_width) + 1) / border_width
+        if not right_bound:
+            x[-border_width:] = torch.flip(
+                (torch.arange(border_width) + 1) / border_width, dims=(0,)
+            )
+        return x
+
+    def build_mask(self, data, is_bound, border_width):
+        _, _, _, H, W = data.shape
+        h = self.build_1d_mask(H, is_bound[0], is_bound[1], border_width[0])
+        w = self.build_1d_mask(W, is_bound[2], is_bound[3], border_width[1])
+        h = repeat(h, "H -> H W", H=H, W=W)
+        w = repeat(w, "W -> H W", H=H, W=W)
+        mask = torch.stack([h, w]).min(dim=0).values
+        mask = rearrange(mask, "H W -> 1 1 1 H W")
+        return mask
+
+    def tiled_decode(self, zs, tile_size=(22, 40), tile_stride=(14, 26)):
+        """Spatial tiled decode: decode each H×W tile independently, blend on CPU."""
+        _, _, T, H, W = zs.shape
+        size_h, size_w = tile_size
+        stride_h, stride_w = tile_stride
+        device = zs.device
+
+        tasks = []
+        for h in range(0, H, stride_h):
+            if h - stride_h >= 0 and h - stride_h + size_h >= H:
+                continue
+            for w in range(0, W, stride_w):
+                if w - stride_w >= 0 and w - stride_w + size_w >= W:
+                    continue
+                tasks.append((h, min(h + size_h, H), w, min(w + size_w, W)))
+
+        out_T = T * 4 - 3
+        out_H = H * self.upsampling_factor
+        out_W = W * self.upsampling_factor
+
+        weight = torch.zeros((1, 1, out_T, out_H, out_W), dtype=zs.dtype, device="cpu")
+        values = torch.zeros((1, 3, out_T, out_H, out_W), dtype=zs.dtype, device="cpu")
+
+        for h, h_, w, w_ in tasks:
+            tile = zs[:, :, :, h:h_, w:w_].to(device)
+            with amp.autocast("cuda", dtype=self.dtype):
+                decoded = self.model.decode(tile, self.scale, cpu_offload=True).float().clamp_(-1, 1)
+
+            mask = self.build_mask(
+                decoded,
+                is_bound=(h == 0, h_ >= H, w == 0, w_ >= W),
+                border_width=(
+                    (size_h - stride_h) * self.upsampling_factor,
+                    (size_w - stride_w) * self.upsampling_factor,
+                ),
+            ).to(dtype=zs.dtype, device="cpu")
+
+            th = h * self.upsampling_factor
+            tw = w * self.upsampling_factor
+            values[:, :, :, th:th + decoded.shape[3], tw:tw + decoded.shape[4]] += decoded * mask
+            weight[:, :, :, th:th + decoded.shape[3], tw:tw + decoded.shape[4]] += mask
+
+        return (values / weight).clamp_(-1, 1)
+
+    def wrapped_decode(self, zs, cpu_offload=False, tiled=False,
+                       tile_size=(22, 40), tile_stride=(14, 26)):
         try:
             if not isinstance(zs, torch.Tensor):
                 raise TypeError("zs should be a torch.Tensor")
+            if tiled:
+                return self.tiled_decode(zs, tile_size=tile_size, tile_stride=tile_stride)
             with amp.autocast('cuda', dtype=self.dtype):
-                return self.model.decode(zs, self.scale).float().clamp_(-1,
-                                                                 1)
+                return self.model.decode(zs, self.scale, cpu_offload=cpu_offload).float().clamp_(-1, 1)
 
         except TypeError as e:
             logging.info(e)

@@ -107,6 +107,123 @@ class PromptRewriter:
 # -----------------------------
 # 分布式工具函数
 # -----------------------------
+def apply_group_offload(backbone, group_size: int, device):
+    """Pipelined CPU↔GPU offload for DiT backbone blocks.
+
+    Uses pinned host memory + a dedicated CUDA stream so transfers overlap
+    with GPU compute:
+      - pre-hook of group N: wait for N's prefetch; async store(N-1) +
+        prefetch(N+1) — both run while N computes.
+
+    Key performance choices:
+      - _load uses b.to(device, non_blocking=True): one C++ call per block
+        instead of ~400 individual tensor copies → ~400x fewer CUDA API calls.
+      - _store (inference only): just re-points p.data to the pinned cpu_buf;
+        no GPU→CPU copy needed because weights never change during inference.
+      - _param_cache: pre-computed named_parameters lists avoid repeated
+        Python generator overhead in the hook hot-path.
+
+    Self-heals between samples: if offload_backbone has moved params off the
+    pinned bufs, the pre-hook detects this and reloads the current group before
+    allowing the forward to proceed.
+    """
+    all_blocks = (
+        list(backbone.double_blocks) +
+        list(backbone.single_blocks) +
+        list(backbone.double_final_blocks)
+    )
+    groups = [all_blocks[i:i + group_size] for i in range(0, len(all_blocks), group_size)]
+    n_groups = len(groups)
+    blk_idx = {id(b): i for i, b in enumerate(all_blocks)}
+
+    # Move all blocks to CPU then pin every parameter tensor.
+    # Pinned (page-locked) memory enables DMA at ~12 GB/s vs ~2 GB/s pageable.
+    for blk in all_blocks:
+        blk.to("cpu")
+    cpu_bufs: list[dict] = []
+    for blk in all_blocks:
+        d: dict = {}
+        for name, p in blk.named_parameters(recurse=True):
+            d[name] = p.data.pin_memory()
+            p.data = d[name]
+        cpu_bufs.append(d)
+    torch.cuda.empty_cache()
+
+    # Pre-cache named_parameters lists — avoids repeated Python generator
+    # construction in the hot-path (hook fires n_groups × n_cfg_passes / step).
+    _param_cache = [
+        list(blk.named_parameters(recurse=True)) for blk in all_blocks
+    ]
+
+    xfer_stream = torch.cuda.Stream(device=device)
+
+    def _restore_pinned(gi: int):
+        """Re-point p.data to cpu_bufs after offload_backbone breaks the links."""
+        for b in groups[gi]:
+            idx = blk_idx[id(b)]
+            for name, p in _param_cache[idx]:
+                if not p.data.is_cuda:
+                    p.data = cpu_bufs[idx][name]
+
+    def _load(gi: int):
+        """Async pinned-CPU → GPU for all blocks in group gi.
+
+        b.to(device, non_blocking=True) is a single C++ Module.to() call that
+        moves all parameters at once using the pinned source for DMA.
+        """
+        with torch.cuda.stream(xfer_stream):
+            for b in groups[gi]:
+                b.to(device, non_blocking=True)
+
+    def _store(gi: int):
+        """Return group gi params to pinned CPU bufs.
+
+        Inference-only optimisation: weights are read-only, so we skip the
+        GPU→CPU copy and just re-point p.data to the still-valid cpu_buf.
+        The old GPU tensor is freed by the CUDA allocator after the stream
+        that last used it completes.
+        """
+        for b in groups[gi]:
+            idx = blk_idx[id(b)]
+            for name, p in _param_cache[idx]:
+                if p.data.is_cuda:
+                    p.data = cpu_bufs[idx][name]
+
+    # Pre-load first group synchronously so group 0 is ready before any hook fires.
+    _load(0)
+    torch.cuda.current_stream().wait_stream(xfer_stream)
+
+    handles = []
+    for gi, group in enumerate(groups):
+        prev_gi = (gi - 1 + n_groups) % n_groups
+        nxt_gi  = (gi + 1) % n_groups
+
+        def make_pre(cur_gi: int, p_gi: int, n_gi: int):
+            def pre(module, args):
+                first_param = next(groups[cur_gi][0].parameters(), None)
+                if first_param is not None and not first_param.data.is_cuda:
+                    # Self-heal: cur group ended up on CPU (e.g. offload_backbone
+                    # ran between samples).  Restore pinned buf pointers so
+                    # b.to(device) can use DMA, then reload synchronously.
+                    _restore_pinned(cur_gi)
+                    _load(cur_gi)
+                    torch.cuda.current_stream().wait_stream(xfer_stream)
+                else:
+                    # Normal path: wait for the async prefetch issued by the
+                    # previous group's pre-hook.
+                    torch.cuda.current_stream().wait_stream(xfer_stream)
+                # While cur_gi computes: store prev group and prefetch next —
+                # both overlap with GPU compute on xfer_stream.
+                _store(p_gi)
+                _load(n_gi)
+                return args
+            return pre
+
+        handles.append(group[0].register_forward_pre_hook(make_pre(gi, prev_gi, nxt_gi)))
+
+    return handles
+
+
 def setup_dist():
     if int(os.environ.get("WORLD_SIZE", "1")) > 1:
         local_rank = int(os.environ["LOCAL_RANK"])
@@ -218,6 +335,18 @@ def main():
                         help="启用 prompt rewriter（默认关闭）")
     parser.add_argument("--rewrite_model", type=str, default="Qwen/Qwen3-30B-A3B-Instruct-2507-FP8",
                         help="Rewriter 模型路径")
+    parser.add_argument("--t5_offload", action="store_true",
+                        help="T5 文本编码完成后移回 CPU，释放显存供 DiT 使用")
+    parser.add_argument("--group_offload", action="store_true",
+                        help="DiT backbone 逐组 block CPU↔GPU offload（去噪期间节省显存）")
+    parser.add_argument("--offload_group_size", type=int, default=1,
+                        help="每次转移的 transformer block 数量（默认 1，越小越省显存但越慢）")
+    parser.add_argument("--vae_tiling", action="store_true",
+                        help="VAE decode 空间分块（tiled decode），降低 decode 峰值显存")
+    parser.add_argument("--vae_tile_size", type=int, nargs=2, default=[22, 40],
+                        metavar=("H", "W"), help="Latent tile 大小（默认 22 40，对应 latent 44×80）")
+    parser.add_argument("--vae_tile_stride", type=int, nargs=2, default=[14, 26],
+                        metavar=("H", "W"), help="Latent tile stride（默认 14 26）")
 
     args = parser.parse_args()
     use_rewrite = args.rewrite
@@ -294,6 +423,24 @@ def main():
                   f"{len(pipe.model.backbone.single_blocks)} single + "
                   f"{len(pipe.model.backbone.double_final_blocks)} double_final blocks "
                   "to SP-aware self-attn.")
+
+    pipe._t5_offload = args.t5_offload
+    pipe._group_offload = args.group_offload
+    if args.t5_offload:
+        # Move T5 to CPU *after* pipe.to(device) and torch.compile so the compiled
+        # graph targets GPU. It will be moved back to GPU only during text encoding.
+        pipe.text_model.model.to("cpu")
+        torch.cuda.empty_cache()
+        if is_main(rank):
+            print("[Offload] T5 CPU offload enabled: encoder moves to GPU only during text encoding")
+
+    if args.group_offload:
+        apply_group_offload(pipe.model.backbone, args.offload_group_size, device)
+        if is_main(rank):
+            total = (len(pipe.model.backbone.double_blocks) +
+                     len(pipe.model.backbone.single_blocks) +
+                     len(pipe.model.backbone.double_final_blocks))
+            print(f"[Offload] DiT group offload enabled: {total} blocks, group_size={args.offload_group_size}")
 
     # --- Dataset (Normal Map-Style) ---
     if modality == "video":
@@ -459,6 +606,10 @@ def main():
                         is_i2v=sample_is_i2v,
                         timbre_cfg=args.timbre_cfg or cfg.get("timbre_cfg", False),
                         timbre_align_guidance_scale=args.timbre_align_guidance_scale if args.timbre_cfg else cfg.get("timbre_align_guidance_scale", 3.0),
+                        offload_backbone=args.t5_offload or args.group_offload,
+                        tiled_vae=args.vae_tiling,
+                        vae_tile_size=tuple(args.vae_tile_size),
+                        vae_tile_stride=tuple(args.vae_tile_stride),
                     )
 
                 current_batch_size = 0

@@ -353,6 +353,9 @@ class AudioVideoPipeline(DiffusionPipeline):
         timbre_cfg: bool = False,
         timbre_align_guidance_scale: float = 2.0,
         offload_backbone: bool = False,
+        tiled_vae: bool = False,
+        vae_tile_size: tuple = (44, 80),
+        vae_tile_stride: tuple = (28, 52),
     ):
         # num_steps = 1000
         """
@@ -382,6 +385,10 @@ class AudioVideoPipeline(DiffusionPipeline):
         else:
             video_negative_prompt = "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"        # text_embeddings_audio_neg, text_embeddings_image_neg, text_embeddings_video_neg = \
 
+        # T5 offload: move encoder to GPU only for the duration of text encoding
+        if getattr(self, '_t5_offload', False):
+            self.text_model.model.to(device)
+
         for caption in batch["captions"]:
             with torch.no_grad():
                 text_embeddings_cond, cur_spk_pos = self.text_model([caption], device, return_spk_pos=True)
@@ -399,6 +406,10 @@ class AudioVideoPipeline(DiffusionPipeline):
             audio_pos_context.append(text_embeddings_cond)
             vision_pos_context.append(text_embeddings_cond)
             spk_pos.append(cur_spk_pos)
+
+        if getattr(self, '_t5_offload', False):
+            self.text_model.model.to("cpu")
+            torch.cuda.empty_cache()
 
         audio_vae_dim = self.audio_latent_ch
         video_vae_dim = self.video_latent_ch
@@ -542,7 +553,22 @@ class AudioVideoPipeline(DiffusionPipeline):
 
         # Offload backbone to CPU before VAE decode to free GPU memory
         if offload_backbone:
-            self.model.backbone.to("cpu")
+            if getattr(self, '_group_offload', False):
+                # Blocks are in pinned CPU buffers managed by hooks.
+                # Only move non-block modules (heads, embedders, etc.) to CPU.
+                for name, module in self.model.backbone.named_children():
+                    if name not in ('double_blocks', 'single_blocks', 'double_final_blocks'):
+                        module.to("cpu")
+                # Also ensure any block that is still on GPU gets moved to CPU
+                # (the last loaded group may still have GPU tensors).
+                for blk in (list(self.model.backbone.double_blocks) +
+                            list(self.model.backbone.single_blocks) +
+                            list(self.model.backbone.double_final_blocks)):
+                    for p in blk.parameters():
+                        if p.data.is_cuda:
+                            p.data = p.data.cpu()
+            else:
+                self.model.backbone.to("cpu")
             torch.cuda.empty_cache()
 
         # 5) decode 成图
@@ -558,13 +584,17 @@ class AudioVideoPipeline(DiffusionPipeline):
             if not save_vid_latent:
                 for t, h, w in t_h_w_list:
                     img_latent = latents[start_idx: start_idx + t * h * w].view(t, h, w, video_vae_dim)
-                    dec = vision_vae.decode(img_latent)
+                    dec = vision_vae.decode(img_latent, cpu_offload=offload_backbone,
+                                            tiled=tiled_vae, tile_size=vae_tile_size,
+                                            tile_stride=vae_tile_stride)
                     img = dec.sample if hasattr(dec, "sample") else dec#(1,3,h,w)
                     while img.shape[1] == 1 and img.shape[2] == 1:
                         import time
                         time.sleep(0.2)
                         print("retry decoding for generation cases")
-                        dec = vision_vae.decode(img_latent)
+                        dec = vision_vae.decode(img_latent, tiled=tiled_vae,
+                                                tile_size=vae_tile_size,
+                                                tile_stride=vae_tile_stride)
                         img = dec.sample if hasattr(dec, "sample") else dec#(1,3,h,w)
                     # img=img.permute(0, 3, 1, 2)
                     if img.shape[0] == 1:
@@ -593,6 +623,16 @@ class AudioVideoPipeline(DiffusionPipeline):
                 decode_dict = decode_dict.sample if hasattr(decode_dict, "sample") else decode_dict
                 audio_list.append(decode_dict)
                 start_idx += audio_len
+
+        # Reload backbone for next sample after decode
+        if offload_backbone:
+            if getattr(self, '_group_offload', False):
+                # blocks are managed by hooks; only reload non-block static parts to GPU
+                for name, module in self.model.backbone.named_children():
+                    if name not in ('double_blocks', 'single_blocks', 'double_final_blocks'):
+                        module.to(device)
+            else:
+                self.model.backbone.to(device)
 
         return imgs, audio_list
 

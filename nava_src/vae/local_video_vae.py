@@ -101,12 +101,14 @@ class LocalVideoVAEAdapter:
 
         return SimpleNamespace(latent_dist=SampleClass(sample=latent))
 
-    def decode(self, z, rank=-1):
+    def decode(self, z, rank=-1, cpu_offload=False, tiled=False,
+               tile_size=(22, 40), tile_stride=(14, 26)):
         """
         Decode video latents.
 
         Args:
             z: tensor [t, h, w, c] (latent space video)
+            cpu_offload: accumulate decoded frames on CPU to reduce GPU peak memory
         Returns:
             SimpleNamespace(sample=tensor[T, C, H, W]) in [-1, 1]
         """
@@ -117,8 +119,10 @@ class LocalVideoVAEAdapter:
         z = z.unsqueeze(0)
 
         with torch.no_grad():
-            decoded = self.wan_vae.wrapped_decode(z)
-        # decoded: [1, 3, T_decoded, H, W]
+            decoded = self.wan_vae.wrapped_decode(z, cpu_offload=cpu_offload,
+                                                  tiled=tiled, tile_size=tile_size,
+                                                  tile_stride=tile_stride)
+        # decoded: [1, 3, T_decoded, H, W] (may be on CPU if cpu_offload)
         # → squeeze batch → [3, T, H, W] → permute → [T, 3, H, W]
         decoded = decoded.squeeze(0).permute(1, 0, 2, 3)
 
