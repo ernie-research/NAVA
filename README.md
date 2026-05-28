@@ -397,4 +397,4 @@ For questions, issues, or collaborations, please contact [Longbin Ji](mailto:rob
 
 ## NAVA Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=baidu/NAVA&type=Date)](https://star-history.com/#baidu/NAVA&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=ernie-research/NAVA&type=Date)](https://star-history.com/#ernie-research/NAVA&Date)
