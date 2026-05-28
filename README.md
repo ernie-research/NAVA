@@ -391,6 +391,10 @@ If you find NAVA useful in your research, please cite:
 
 We would like to thank the contributors to [Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B), [LTX-Video](https://github.com/Lightricks/LTX-Video), [ReDimNet](https://github.com/IDRnD/ReDimNet), [Qwen3](https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507), and [Ovi](https://github.com/character-ai/Ovi) for their great open-source work, which is helpful to this project.
 
+## Contact
+
+For questions, issues, or collaborations, please contact [Longbin Ji](mailto:robingg1100@gmail.com) and [Guan Wang](mailto:guanw.pku@gmail.com).
+
 ## NAVA Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=baidu/NAVA&type=Date)](https://star-history.com/#baidu/NAVA&Date)
