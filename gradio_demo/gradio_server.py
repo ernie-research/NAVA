@@ -242,7 +242,7 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
 
     def infer_fn(user_prompt: str, rewritten_prompt: str, image_file: str,
                  spk_wav_1: str, spk_wav_2: str,
-                 steps: int, duration_sec: int, is_i2v: bool, aspect_ratio: str):
+                 steps: int, duration_sec: int, aspect_ratio: str):
         """Main inference function triggered by Generate button.
         Uses rewritten_prompt if available, otherwise falls back to user_prompt.
         """
@@ -254,6 +254,9 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
 
         # Resolve aspect ratio to height/width
         height, width = ASPECT_RATIO_MAP.get(aspect_ratio, (704, 1280))
+
+        # I2V mode is automatically enabled when an image is provided
+        is_i2v = bool(image_file)
 
         # Offload rewriter to free GPU memory
         rewriter.offload()
@@ -328,12 +331,11 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
                     visible=True,
                 )
 
-                gr.Markdown("### Image (可选，I2V 模式)")
+                gr.Markdown("### Image (可选，上传后自动启用 I2V 模式)")
                 image_input = gr.Image(
                     label="First Frame Image",
                     type="filepath",
                 )
-                is_i2v_input = gr.Checkbox(label="I2V Mode (需提供图片)", value=False)
 
                 gr.Markdown("### Speaker Reference (可选，最多2个)")
                 with gr.Row():
@@ -387,7 +389,7 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
             fn=infer_fn,
             inputs=[prompt_input, rewritten_prompt, image_input,
                     spk_wav_1_input, spk_wav_2_input,
-                    steps_input, duration_input, is_i2v_input, aspect_ratio_input],
+                    steps_input, duration_input, aspect_ratio_input],
             outputs=[video_output],
         )
 
@@ -425,10 +427,11 @@ def main():
             return f"[DEBUG] Rewritten: {user_prompt}"
 
         def dummy_infer(user_prompt, rewritten_prompt, image_file,
-                        spk_wav_1, spk_wav_2, steps, duration_sec, is_i2v, aspect_ratio):
+                        spk_wav_1, spk_wav_2, steps, duration_sec, aspect_ratio):
             final = rewritten_prompt.strip() if rewritten_prompt.strip() else user_prompt
             height, width = ASPECT_RATIO_MAP.get(aspect_ratio, (704, 1280))
             frames = int(duration_sec) * 6 + 1
+            is_i2v = bool(image_file)
             print(f"[DEBUG] Would generate with prompt: {final[:100]}...")
             print(f"[DEBUG] image={image_file}, spk1={spk_wav_1}, spk2={spk_wav_2}")
             print(f"[DEBUG] steps={steps}, frames={frames}, is_i2v={is_i2v}, {width}x{height}")
@@ -444,9 +447,8 @@ def main():
                     rewritten_prompt = gr.Textbox(
                         label="Rewritten Prompt", lines=8, interactive=True)
 
-                    gr.Markdown("### Image (可选，I2V 模式)")
+                    gr.Markdown("### Image (可选，上传后自动启用 I2V 模式)")
                     image_input = gr.Image(label="First Frame Image", type="filepath")
-                    is_i2v_input = gr.Checkbox(label="I2V Mode", value=False)
 
                     gr.Markdown("### Speaker Reference (可选，最多2个)")
                     with gr.Row():
@@ -473,7 +475,7 @@ def main():
                 fn=dummy_infer,
                 inputs=[prompt_input, rewritten_prompt, image_input,
                         spk_wav_1_input, spk_wav_2_input, steps_input,
-                        duration_input, is_i2v_input, aspect_ratio_input],
+                        duration_input, aspect_ratio_input],
                 outputs=[video_output],
             )
 

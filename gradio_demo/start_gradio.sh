@@ -16,8 +16,8 @@ cd "$SCRIPT_DIR"
 MASTER_ADDR="127.0.0.1"
 MASTER_PORT=29508
 
-CONFIG="${CONFIG:-/root/paddlejob/workspace/env_run/NAVA/configs/baseline_t2av_demo_mmdit_no_split_ltx_control_unipc.yaml}"
-CKPT="${CKPT:-/root/paddlejob/workspace/env_run/ernie-one-av/step2000_sft_v4_128bz_fixlr_fixaudio_v2.ckpt}"
+CONFIG="${CONFIG:-configs/nava.yaml}"
+CKPT="${CKPT:-NAVA.ckpt}"
 REWRITE_MODEL="${REWRITE_MODEL:-pe_src/Qwen3-4B-Thinking-2507}"
 PORT="${PORT:-8000}"
 NPROC="${NPROC:-8}"
