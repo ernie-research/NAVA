@@ -37,11 +37,17 @@ https://github.com/user-attachments/assets/a02cc83d-b5a3-42ac-9a77-952e0c3bd0fe
 **1. Install dependencies**
 
 ```bash
+# Install PyTorch matching your CUDA build first
 pip install torch torchvision torchaudio
-pip install diffusers==0.35.2 transformers==4.57.1 accelerate==1.12.0 safetensors
-pip install open_clip_torch einops scipy numpy PyYAML tqdm sentencepiece
+
+# Core + I/O + sequence parallel + (optional) vLLM rewrite + Gradio
+pip install -r requirements.txt
+
+# Flash-Attention has to be built with --no-build-isolation
 pip install flash-attn --no-build-isolation
 ```
+
+> The vLLM and Gradio entries in `requirements.txt` are only needed for the prompt-rewrite server (`pe_src/`) and the interactive Web UI (`gradio_demo/`); comment them out if you don't use those paths.
 
 **2. Download weights** (one command pulls `NAVA.ckpt` and all dependencies into the project root):
 

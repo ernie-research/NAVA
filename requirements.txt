@@ -1,0 +1,46 @@
+# NAVA inference dependencies
+# Install PyTorch separately first (match your CUDA version):
+#   pip install torch torchvision torchaudio
+# Then:
+#   pip install -r requirements.txt
+#   pip install flash-attn --no-build-isolation
+
+# --- Core model / diffusion stack ---
+diffusers>=0.35.2
+transformers>=4.56.0
+accelerate>=1.10.0
+safetensors>=0.4.0
+huggingface_hub>=0.25.0
+sentencepiece>=0.2.0
+tokenizers>=0.20
+
+# --- Sequence parallel (required for --use_sp / 8-GPU inference) ---
+xfuser>=0.4.0
+
+# --- Numerics / utils ---
+numpy
+scipy
+einops>=0.8.0
+PyYAML>=6.0
+tqdm>=4.65
+packaging
+regex
+ftfy
+
+# --- Image / video / audio I/O ---
+pillow>=10.0
+opencv-python
+imageio
+imageio-ffmpeg
+moviepy
+pydub
+soundfile
+
+# --- Prompt rewrite: vLLM batch server (pe_src/) ---
+# Optional — only needed if you use the batch prompt rewriter
+vllm>=0.6.0
+aiohttp>=3.9
+
+# --- Gradio interactive demo (gradio_demo/) ---
+# Optional — only needed for the Web UI
+gradio>=4.0
