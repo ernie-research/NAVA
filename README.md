@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://ernie-research.github.io/NAVA"><img src="https://img.shields.io/badge/Project-Page-1e88e5?style=flat-square&logo=googlechrome&logoColor=white" alt="Project Page"></a>
   <a href="https://arxiv.org/abs/2605.30073"><img src="https://img.shields.io/badge/arXiv-Paper-B31B1B?style=flat-square&logo=arxiv&logoColor=white" alt="arXiv"></a>
-  <a href="https://huggingface.co/robingg1/NAVA"><img src="https://img.shields.io/badge/%F0%9F%A4%97_HuggingFace-Models-FFD21E?style=flat-square" alt="HuggingFace Models"></a>
+  <a href="https://huggingface.co/ernie-research/NAVA"><img src="https://img.shields.io/badge/%F0%9F%A4%97_HuggingFace-Models-FFD21E?style=flat-square" alt="HuggingFace Models"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-4c1?style=flat-square" alt="License"></a>
 </p>
 
@@ -46,7 +46,7 @@ pip install flash-attn --no-build-isolation
 **2. Download weights** (one command pulls `NAVA.ckpt` and all dependencies into the project root):
 
 ```bash
-huggingface-cli download robingg1/NAVA --local-dir ./
+huggingface-cli download ernie-research/NAVA --local-dir ./
 ```
 
 **3. Run inference** (8 GPUs with sequence parallel) — first pick the script for your **task**:
@@ -389,11 +389,14 @@ The LTX audio-VAE Python code is vendored under `nava_src/vendor/ltx_core/` (see
 If you find NAVA useful in your research, please cite:
 
 ```bibtex
-@article{nava2026,
-  title   = {NAVA: Native Audio-Visual Alignment for Generation},
-  author  = {ERNIE Team},
-  journal = {arXiv preprint},
-  year    = {2026},
+@misc{ji2026nava,
+      title         = {Native Audio-Visual Alignment for Generation},
+      author        = {Longbin Ji and Guan Wang and Xuan Wei and Chenye Yang and Xiangrui Liu and Zhenyu Zhang and Shuohuan Wang and Yu Sun and Jingzhou He},
+      year          = {2026},
+      eprint        = {2605.30073},
+      archivePrefix = {arXiv},
+      primaryClass  = {cs.CV},
+      url           = {https://arxiv.org/abs/2605.30073},
 }
 ```
 
