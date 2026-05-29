@@ -384,6 +384,12 @@ The single `huggingface-cli download` in [Quick Start](#quick-start) pulls every
 
 The LTX audio-VAE Python code is vendored under `nava_src/vendor/ltx_core/` (see its `NOTICE.md` and `LICENSE`), so no separate clone of the LTX repo is needed. The ReDimNet speaker embedder is fetched automatically via `torch.hub` on first run.
 
+## License
+
+The source code in this repository is released under the Apache License 2.0.
+
+Model weights, pretrained backbones, tokenizers, audio VAEs, speaker encoders, and prompt-rewriting models may be subject to different licenses from their original providers. This includes, but is not limited to, Wan2.2, LTX-Video, Qwen3, and ReDimNet. Users are responsible for complying with the corresponding licenses of all third-party components.
+
 ## Citation
 
 If you find NAVA useful in your research, please cite:
