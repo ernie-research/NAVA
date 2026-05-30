@@ -362,18 +362,18 @@ Datasets are referenced via a `.list` file and sampled according to a `.weight` 
 
 | Script | Purpose |
 |--------|---------|
-| `train/train_nava_scarch_mix.sh` | Train from scratch with mixed AV + audio-only tasks (`configs/nava_mixtrain.yaml`) |
+| `train/train_nava_scarch_mix.sh` | Train with mixed AV + audio-only tasks, warm-started from Wan2.2-5B weights (`configs/nava_mixtrain.yaml`) |
 | `train/train_nava_sft.sh` | SFT / fine-tune: load weights from an existing checkpoint, reset step and data cursor |
 
 ```bash
-# From scratch (mixed AV + audio)
+# Train from Wan2.2-5B warm start (mixed AV + audio)
 bash train/train_nava_scarch_mix.sh
 
 # Fine-tune from a checkpoint
 bash train/train_nava_sft.sh
 ```
 
-Both scripts auto-generate an FSDP config (`fsdp_config_auto.yaml`) and launch via `accelerate launch` with `FULL_SHARD` bf16 on 8 GPUs.
+Both scripts auto-generate an FSDP config (`fsdp_config_auto.yaml`) and launch via `accelerate launch` with `FULL_SHARD` bf16 on 8 GPUs. The `train_nava_scarch_mix.sh` script warm-starts from `Wan_5B.ckpt` (weights only, step counter reset) via `--load_ckpt_only` — download it from [Wan-AI/Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) and place it in the project root before running.
 
 ### Resume
 

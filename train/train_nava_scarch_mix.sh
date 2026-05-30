@@ -52,4 +52,4 @@ echo "=================================================="
 accelerate launch \
     --config_file $CONFIG_FILE \
     train/train_nava.py \
-	  --config configs/nava_mixtrain.yaml
+	  --config configs/nava_mixtrain.yaml --resume Wan_5B.ckpt --load_ckpt_only
