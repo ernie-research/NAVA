@@ -400,7 +400,7 @@ class T2AVDataset(Dataset):
                     spk_embs = torch.zeros((1, 192), dtype=torch.float32)
                     if spk_wav and spk_wav != "None" and os.path.exists(spk_wav):
                         query = {
-                            "bos_url": spk_wav,
+                            "data_path": spk_wav,
                             "use_spk_emb": True,
                         }
                         result = self.audio_vae.encode(query).latent_dist.sample()

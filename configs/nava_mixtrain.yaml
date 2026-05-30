@@ -50,7 +50,7 @@ data:
   io_workers: 2
 
   modal_prob: 
-    text_to_audio: 0.0
+    text_to_audio: 1
     text_to_video: 0.0
     text_to_image: 0.0
     text_to_av: 1
@@ -114,7 +114,7 @@ flow: true
 # 性能相关
 num_workers: 0
 prefetch_factor: 32
-grad_accum_steps: 1
+grad_accum_steps: 4 # 开大acc保证有视频样本的梯度
 log_every: 1
 log_cases_every: 1000000        # >0 才会写图像
 log_sample_steps: 25

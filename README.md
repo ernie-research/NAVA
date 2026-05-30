@@ -32,6 +32,14 @@ https://github.com/user-attachments/assets/a02cc83d-b5a3-42ac-9a77-952e0c3bd0fe
 - **Text-Driven Camera Control** — Specify shot composition, camera motion, and pacing directly in the prompt.
 - **Flexible Aspect Ratios** — Generate landscape, portrait, and square videos from the same checkpoint.
 
+## TODO
+
+- [x] Model
+- [x] Gradio Demo
+- [x] Paper Release
+- [x] Inference Code
+- [x] Train Code
+
 ## Quick Start
 
 **1. Install dependencies**
@@ -334,6 +342,82 @@ Loads the rewriter model into the current process — no server needed, but ~40�
 The Gradio demo (`gradio_demo/start_gradio.sh`) embeds a **"Rewrite Prompt"** button next to the prompt textbox. Clicking it calls the same backend as path B, with the rewriter automatically offloaded to CPU during NAVA inference to free GPU memory. Speech-tag pair counts are validated; mismatches surface a warning in the UI.
 
 Best for interactive iteration; for any batch >5 prompts, switch to path A.
+
+## Training
+
+NAVA supports training from scratch, SFT / fine-tuning from a pretrained checkpoint, and mixed audio-video training. Full training documentation is in [`train/README.md`](train/README.md); below is a quick-start reference.
+
+### Data Format
+
+Each dataset is a JSONL file, one sample per line:
+
+```json
+{
+  "data_id": "unique_id",
+  "video_info": [{"data_path": "/abs/path/video.mp4", "fps": 25.0, "duration": 3.0, "image_width": 1920, "image_height": 1080}],
+  "text_list": [{"text": "描述文本，台词用 <S>...<E> 包裹", "text_type": "caption", "speech_start": [0.0], "speech_end": [2.76]}],
+  "audio_splits_info_tagging": [{"audio_duration": 3.0, "audio_info": {"caption_data": {}}}]
+}
+```
+
+Datasets are referenced via a `.list` file and sampled according to a `.weight` file that assigns per-dataset weights and training modalities (`text_to_av` / `text_to_audio` / `text_to_video` / `text_to_image`).
+
+### Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `train/train_nava_scarch_mix.sh` | Train from scratch with mixed AV + audio-only tasks (`configs/nava_mixtrain.yaml`) |
+| `train/train_nava_sft.sh` | SFT / fine-tune: load weights from an existing checkpoint, reset step and data cursor |
+
+```bash
+# From scratch (mixed AV + audio)
+bash train/train_nava_scarch_mix.sh
+
+# Fine-tune from a checkpoint
+bash train/train_nava_sft.sh
+```
+
+Both scripts auto-generate an FSDP config (`fsdp_config_auto.yaml`) and launch via `accelerate launch` with `FULL_SHARD` bf16 on 8 GPUs.
+
+### Resume
+
+Checkpoints are saved every `save_every` steps (default 2500) at `{out_dir}/step{N}.ckpt`. They store model weights, EMA weights, the global step counter, and per-worker data cursors for exact resume.
+
+```bash
+# Full resume (weights + step + data position)
+accelerate launch --config_file fsdp_config_auto.yaml \
+    train_nava.py --config configs/nava.yaml \
+    --resume outputs/your_run/step5000.ckpt
+
+# Weights only — reset step to 0 (for fine-tuning)
+accelerate launch --config_file fsdp_config_auto.yaml \
+    train_nava.py --config configs/nava.yaml \
+    --resume NAVA.ckpt --load_ckpt_only
+```
+
+Both `.ckpt` and `.safetensors` checkpoints are supported. When a `.ckpt` path is given but not found, the loader automatically falls back to the matching `.safetensors` file. Safetensors files contain weights only and always behave like `--load_ckpt_only`.
+
+### Key Hyperparameters
+
+All hyperparameters are controlled via the YAML config — no CLI overrides. Edit or copy `configs/nava.yaml` / `configs/nava_mixtrain.yaml` to change settings.
+
+| Hyperparameter | YAML key | Default |
+|----------------|----------|---------|
+| Learning rate | `lr` | `1e-4` |
+| Batch size (per GPU) | `batch_size` | — |
+| Gradient accumulation | `grad_accum_steps` | `1` (`4` for mixed training) |
+| Max steps | `max_steps` | — |
+| Save interval | `save_every` | `2500` |
+| Output dir | `out_dir` | — |
+| Target frames | `data.video_tgt_frames` | 121 (4N+1) |
+| Video FPS | `data.video_fps` | `24` |
+| Max audio duration | `data.max_audio_duration` | `10.0` |
+| Length bucketing | `data.use_length_buckets` | `false` |
+| Audio loss weight | `audio_loss_coff` | `0.2` |
+| Video loss weight | `vision_loss_coff` | `1.0` |
+
+See [`train/README.md`](train/README.md) for the full reference including async dataloader tuning (`io_workers`, `queue_size`) and multi-node setup.
+
 ## Configuration
 
 The repository ships a single inference config — `configs/nava.yaml` — used by every script (`scripts/inference.sh`, `scripts/inference_timbre.sh`, `gradio_demo/start_gradio.sh`).

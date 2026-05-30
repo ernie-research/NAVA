@@ -28,7 +28,6 @@ wandb/
 # ============================================================
 # Data
 # ============================================================
-data/
 *.tar
 *.tar.gz
 *.zip
@@ -50,6 +49,14 @@ dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+fsdp_config_auto.yaml
+evaluation/
+precomputed_vae_adapter.py
+convert_verse_bench.py
+offline_encode.py
+tests/
+data/videos/
+
 
 # Virtualenvs
 venv/

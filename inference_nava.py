@@ -404,13 +404,26 @@ def main():
         device=device,
     )
 
-    if "video" in modality and "audio" in modality and not cfg.get("use_mmdit_model", False):
-        load_fusion_checkpoint(pipe.model, checkpoint_path=args.ckpt, from_meta=True)
+    ckpt_path = args.ckpt
+    if not os.path.exists(ckpt_path):
+        sf_path = os.path.splitext(ckpt_path)[0] + ".safetensors"
+        if os.path.exists(sf_path):
+            if is_main(rank):
+                print(f"[INFO] {ckpt_path} not found, falling back to {sf_path}")
+            ckpt_path = sf_path
+        else:
+            raise FileNotFoundError(f"Checkpoint not found: {ckpt_path} (also tried {sf_path})")
+
+    if ckpt_path.endswith(".safetensors"):
+        from safetensors.torch import load_file
+        state_dict = load_file(ckpt_path, device="cpu")
     else:
-        ckpt = torch.load(args.ckpt, map_location="cpu", mmap=True)
-        missing, unexpected = pipe.model.load_state_dict(ckpt['state_dict'], strict=False)
-        if is_main(rank):
-            print(f"missing: {missing}, unexpected: {unexpected}")
+        ckpt = torch.load(ckpt_path, map_location="cpu", mmap=True)
+        state_dict = ckpt["state_dict"]
+
+    missing, unexpected = pipe.model.load_state_dict(state_dict, strict=False)
+    if is_main(rank):
+        print(f"missing: {missing}, unexpected: {unexpected}")
         
     pipe = pipe.to(device)
     pipe.model.eval()

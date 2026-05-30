@@ -13,6 +13,13 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 CKPT="${CKPT:-NAVA.ckpt}"
+if [ ! -f "$CKPT" ]; then
+    SF="${CKPT%.ckpt}.safetensors"
+    if [ -f "$SF" ]; then
+        echo "[INFO] $CKPT not found, falling back to $SF"
+        CKPT="$SF"
+    fi
+fi
 CONFIG="${CONFIG:-configs/nava.yaml}"
 OUT_DIR="${OUT_DIR:-eval_results/general}"
 DATA_FILE="${DATA_FILE:-infer_cases/general/prompts.jsonl}"

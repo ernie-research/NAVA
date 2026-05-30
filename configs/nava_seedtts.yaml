@@ -40,7 +40,6 @@ timbre_align_guidance_scale: 3.0
 data:
   audio_tokens_per_sec: 25
 
-  use_server: False
   audio_scaling_factor: 1.0
   audio_shift_factor: 0.0
   video_scaling_factor: 1.0

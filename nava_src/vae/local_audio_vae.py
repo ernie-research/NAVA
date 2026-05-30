@@ -1,5 +1,6 @@
 import os
 import io
+import threading
 
 import torch
 import torchaudio
@@ -30,7 +31,32 @@ class SampleClass:
         return self.content
 
 
-def _adapt_channels(audio, target_ch):
+_SQRT2_INV = 1.0 / (2 ** 0.5)  # ITU-R BS.775 downmix coefficient
+
+
+def _downmix_to_stereo(audio: torch.Tensor) -> torch.Tensor:
+    """audio: (B, C, T), C > 2 — ITU-R BS.775 standard downmix to stereo."""
+    C = audio.shape[1]
+    if C == 5:  # 5.0: L R C Ls Rs
+        L, R, Cch, Ls, Rs = [audio[:, i] for i in range(5)]
+        left  = L + _SQRT2_INV * Cch + _SQRT2_INV * Ls
+        right = R + _SQRT2_INV * Cch + _SQRT2_INV * Rs
+    elif C == 6:  # 5.1: L R C LFE Ls Rs
+        L, R, Cch, _LFE, Ls, Rs = [audio[:, i] for i in range(6)]
+        left  = L + _SQRT2_INV * Cch + _SQRT2_INV * Ls
+        right = R + _SQRT2_INV * Cch + _SQRT2_INV * Rs
+    elif C == 8:  # 7.1: L R C LFE Ls Rs SL SR
+        L, R, Cch, _LFE, Ls, Rs, SL, SR = [audio[:, i] for i in range(8)]
+        left  = L + _SQRT2_INV * Cch + _SQRT2_INV * Ls + _SQRT2_INV * SL
+        right = R + _SQRT2_INV * Cch + _SQRT2_INV * Rs + _SQRT2_INV * SR
+    else:  # unknown layout: mean → dual mono
+        mono = audio.mean(dim=1, keepdim=True)
+        return mono.expand(-1, 2, -1)
+    return torch.stack([left, right], dim=1)
+
+
+def _adapt_channels(audio: torch.Tensor, target_ch: int) -> torch.Tensor:
+    """audio: (B, C, T) → (B, target_ch, T)"""
     actual_ch = audio.shape[1]
     if actual_ch == target_ch:
         return audio
@@ -38,8 +64,9 @@ def _adapt_channels(audio, target_ch):
         if target_ch == 1:
             return audio.mean(dim=1, keepdim=True)
         else:
-            return audio[:, :1].expand(-1, target_ch, -1)
+            return _downmix_to_stereo(audio)
     else:
+        # mono → stereo: zero-copy expand
         return audio[:, :1].expand(-1, target_ch, -1)
 
 
@@ -134,45 +161,93 @@ class LocalAudioVAEAdapter:
         self.spk_model = spk_model
         self.sample_rate = sample_rate
         self.config = SimpleNamespace(scaling_factor=1.0, shift_factor=0.0)
+        self._lock = threading.Lock()
 
     @property
     def dtype(self):
         return torch.float32
 
+    # 1 latent timestep = sample_rate / audio_tokens_per_sec = 16000 / 25 = 640 samples
+    _SAMPLES_PER_LATENT_STEP = TARGET_SAMPLE_RATE / 25.0
+
     def encode(self, x, rank=-1, **kwargs):
         """
-        For spk_embs extraction from audio.
+        Encode audio to latents and optionally extract speaker embedding.
 
         Args:
-            x: dict with "bos_url" and "use_spk_emb" keys
+            x: dict with keys:
+               - "data_path": local audio file path
+               - "use_spk_emb": bool
+               - "start" (optional): clip start time in seconds
+               - "duration" (optional): clip duration in seconds
+               - "target_length" (optional): target latent timesteps; waveform is
+                 zero-padded to int(target_length * 640) samples before encoding,
+                 matching demo_fastapi_spk.py behaviour
         Returns:
             SimpleNamespace(latent_dist=SampleClass(sample=dict))
+            sample = {"audio_latents": [tensor[C, T]], "spk_embs": tensor[1, D]}
         """
-        use_spk_emb = x.get("use_spk_emb", False) if isinstance(x, dict) else False
-        spk_embs = torch.zeros((1, 192), dtype=torch.float32)
+        use_spk_emb    = x.get("use_spk_emb", False)    if isinstance(x, dict) else False
+        data_path      = x.get("data_path", "")          if isinstance(x, dict) else str(x)
+        start          = x.get("start", None)             if isinstance(x, dict) else None
+        duration       = x.get("duration", None)          if isinstance(x, dict) else None
+        target_length  = x.get("target_length", None)     if isinstance(x, dict) else None
 
-        if use_spk_emb and self.spk_model is not None and isinstance(x, dict):
-            bos_url = x.get("bos_url", "")
-            if os.path.exists(bos_url):
-                try:
-                    audio_data, sr = torchaudio.load(bos_url)
-                    if sr != 16000:
-                        audio_data = torchaudio.functional.resample(audio_data, orig_freq=sr, new_freq=16000)
-                    # Truncate to first 30s (align with online server)
-                    spk_len = int(30.0 * 16000)
-                    if audio_data.shape[-1] > spk_len:
-                        audio_data = audio_data[..., :spk_len]
-                    spk_audio = audio_data.mean(dim=0, keepdim=True).to(self.ltx_vae.device)
-                    with torch.no_grad():
-                        spk_embs = self.spk_model(spk_audio).cpu()
-                    print(f"[SpkEmb] Encoded {bos_url}, shape={spk_embs.shape}, norm={spk_embs.norm().item():.4f}")
-                except Exception as e:
-                    print(f"[SpkEmb] ERROR encoding {bos_url}: {e}")
-            else:
-                print(f"[SpkEmb] WARNING: file not found: {bos_url}")
+        spk_embs = torch.zeros((1, 192), dtype=torch.float32)
+        audio_data = None
+
+        if os.path.exists(data_path):
+            try:
+                wav, sr = torchaudio.load(data_path)
+                if sr != self.sample_rate:
+                    wav = torchaudio.functional.resample(wav, orig_freq=sr, new_freq=self.sample_rate)
+                if start is not None and duration is not None:
+                    s = int(start * self.sample_rate)
+                    e = int((start + duration) * self.sample_rate)
+                    wav = wav[:, s:e]
+                audio_data = wav  # [channels, samples]
+            except Exception as e:
+                print(f"[AudioVAE] load error {data_path}: {e}")
+        else:
+            print(f"[AudioVAE] file not found: {data_path}")
+
+        # --- waveform zero-padding to target_length (before encode, matching server) ---
+        if audio_data is not None and target_length is not None and target_length > 0:
+            target_samples = int(target_length * self._SAMPLES_PER_LATENT_STEP)
+            current_samples = audio_data.shape[-1]
+            if current_samples < target_samples:
+                pad_len = target_samples - current_samples
+                audio_data = torch.nn.functional.pad(
+                    audio_data, (0, pad_len), mode='constant', value=0.0
+                )
+
+        # --- encode latents ---
+        audio_latents_ct = None
+        if audio_data is not None:
+            try:
+                with self._lock:
+                    latents = self.ltx_vae.wrapped_encode(audio_data)  # [1, C, T]
+                audio_latents_ct = latents[0]                          # [C, T]
+            except Exception as e:
+                print(f"[AudioVAE] encode error {data_path}: {e}")
+
+        if audio_latents_ct is None:
+            audio_latents_ct = torch.zeros((128, 1), dtype=torch.float32)
+
+        # --- speaker embedding ---
+        if use_spk_emb and self.spk_model is not None and audio_data is not None:
+            try:
+                spk_wav = audio_data.mean(dim=0, keepdim=True)
+                spk_len = int(30.0 * self.sample_rate)
+                if spk_wav.shape[-1] > spk_len:
+                    spk_wav = spk_wav[..., :spk_len]
+                with torch.no_grad():
+                    spk_embs = self.spk_model(spk_wav.to(self.ltx_vae.device)).cpu()
+            except Exception as e:
+                print(f"[SpkEmb] ERROR {data_path}: {e}")
 
         result = {
-            "audio_latents": torch.zeros((1, 128), dtype=torch.float32),
+            "audio_latents": [audio_latents_ct],  # list of [C, T]
             "spk_embs": spk_embs,
         }
         return SimpleNamespace(latent_dist=SampleClass(sample=result))

@@ -145,9 +145,9 @@ class NAVAEngine:
                 spk_embs_list.append(torch.zeros((1, 192), dtype=torch.float32))
                 continue
 
-            # LocalAudioVAEAdapter.encode accepts local path via "bos_url" key
+            # LocalAudioVAEAdapter.encode accepts local path via "data_path" key
             query = {
-                "bos_url": wav_path,
+                "data_path": wav_path,
                 "use_spk_emb": True,
             }
             result = self.pipe.audio_vae.encode(query).latent_dist.sample()
