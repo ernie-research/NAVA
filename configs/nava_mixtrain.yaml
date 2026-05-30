@@ -40,8 +40,8 @@ timbre_align_guidance_scale: 3.0
 # 数据
 data:
   data_filelist: data/av_data_demo.list
-  data_weights: data/av_data_demo.weight
-  use_length_buckets: true
+  data_weights: data/av_data_demo_mix.weight
+  use_length_buckets: false
   num_length_buckets: 5
   enable_ddp_bucket_sync: true
   audio_tokens_per_sec: 25

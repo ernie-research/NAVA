@@ -1325,7 +1325,7 @@ class AudioVideoDataset(IterableDataset):
                             "duration": speech_end - speech_start,
                             "use_spk_emb": self.add_spk_emb and random.random() < self.spk_emb_prob
                         })
-                        print(query, self.spk_emb_prob, 111)
+                        # print(query, self.spk_emb_prob, 111)
                         _t0_spk_enc = time.monotonic()
                         result = self.audio_vae_server.encode(
                             query, rank=self.dist_info.world_rank,

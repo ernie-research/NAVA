@@ -14,8 +14,8 @@
 NAVA is a Native Audio-Visual Alignment framework that formulates joint audio-video generation as *context-conditioned native audio-visual alignment*. NAVA first establishes audio-video correspondence in a dedicated alignment space and then applies context as external conditioning to guide the aligned representation. It is instantiated with an Align-then-Fuse MMDiT architecture, which progressively bridges modality-aware alignment and unified audio-video denoising. To support controllable speech generation, NAVA further introduces Timbre-in-Context Conditioning, which binds reference timbre cues to corresponding speech spans through the context pathway. With only **6.3B** parameters, NAVA achieves superior audio-visual synchronization and video quality, competitive audio quality, and substantially improved reference-timbre controllability.
 
 > [!IMPORTANT]
-> **This repository is a complete, fully open-sourced release.**
-> It ships end-to-end: full inference pipeline, interactive Gradio demo, and training code — everything you need to reproduce, fine-tune, and build on NAVA.
+> **This repository is a complete open-source release of the NAVA codebase.**
+> It ships end-to-end: full inference pipeline, interactive Gradio demo, and training code — everything you need to run, fine-tune, and build on NAVA.
 
 ## Demo
 
