@@ -31,14 +31,7 @@ https://github.com/user-attachments/assets/a02cc83d-b5a3-42ac-9a77-952e0c3bd0fe
 - **Powerful TTS Synthesis** — High-quality speech generation including long, complex sentences in English; limited other languages' support.
 - **Text-Driven Camera Control** — Specify shot composition, camera motion, and pacing directly in the prompt.
 - **Flexible Aspect Ratios** — Generate landscape, portrait, and square videos from the same checkpoint.
-
-## TODO
-
-- [x] Model
-- [x] Gradio Demo
-- [x] Paper Release
-- [x] Inference Code
-- [x] Train Code
+- **Complete Open-Source Package** — This repository ships everything: full inference pipeline, interactive Gradio demo, and end-to-end training code, so you can reproduce, fine-tune, and build on NAVA without any missing pieces.
 
 ## Quick Start
 
