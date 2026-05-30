@@ -52,4 +52,4 @@ echo "=================================================="
 accelerate launch \
     --config_file $CONFIG_FILE \
     train/train_nava.py \
-	  --config configs/nava.yaml --resume NAVA.ckpt --load_ckpt_only
+	  --config configs/nava.yaml --resume NAVA.safetensors --load_ckpt_only

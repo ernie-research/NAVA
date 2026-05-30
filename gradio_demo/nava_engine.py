@@ -80,12 +80,25 @@ class NAVAEngine:
             device=device,
         )
 
-        # Load checkpoint
+        # Load checkpoint — prefer .safetensors, fall back to .ckpt
+        if not os.path.exists(ckpt_path):
+            ckpt_fallback = os.path.splitext(ckpt_path)[0] + ".ckpt"
+            if os.path.exists(ckpt_fallback):
+                if rank == 0:
+                    print(f"[Engine] {ckpt_path} not found, falling back to {ckpt_fallback}")
+                ckpt_path = ckpt_fallback
+            else:
+                raise FileNotFoundError(f"Checkpoint not found: {ckpt_path} (also tried {ckpt_fallback})")
+
         if "video" in self.modality and "audio" in self.modality and not self.cfg.get("use_mmdit_model", False):
             load_fusion_checkpoint(self.pipe.model, checkpoint_path=ckpt_path, from_meta=True)
         else:
-            ckpt = torch.load(ckpt_path, map_location="cpu")
-            missing, unexpected = self.pipe.model.load_state_dict(ckpt['state_dict'], strict=False)
+            if ckpt_path.endswith(".safetensors"):
+                from safetensors.torch import load_file as _sf_load
+                state_dict = _sf_load(ckpt_path, device="cpu")
+            else:
+                state_dict = torch.load(ckpt_path, map_location="cpu")["state_dict"]
+            missing, unexpected = self.pipe.model.load_state_dict(state_dict, strict=False)
             if rank == 0:
                 print(f"[Engine] missing: {missing}, unexpected: {unexpected}")
 

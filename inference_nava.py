@@ -406,13 +406,13 @@ def main():
 
     ckpt_path = args.ckpt
     if not os.path.exists(ckpt_path):
-        sf_path = os.path.splitext(ckpt_path)[0] + ".safetensors"
-        if os.path.exists(sf_path):
+        ckpt_fallback = os.path.splitext(ckpt_path)[0] + ".ckpt"
+        if os.path.exists(ckpt_fallback):
             if is_main(rank):
-                print(f"[INFO] {ckpt_path} not found, falling back to {sf_path}")
-            ckpt_path = sf_path
+                print(f"[INFO] {ckpt_path} not found, falling back to {ckpt_fallback}")
+            ckpt_path = ckpt_fallback
         else:
-            raise FileNotFoundError(f"Checkpoint not found: {ckpt_path} (also tried {sf_path})")
+            raise FileNotFoundError(f"Checkpoint not found: {ckpt_path} (also tried {ckpt_fallback})")
 
     if ckpt_path.endswith(".safetensors"):
         from safetensors.torch import load_file

@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
-CKPT="${CKPT:-NAVA.ckpt}"
+CKPT="${CKPT:-NAVA.safetensors}"
 if [ ! -f "$CKPT" ]; then
     SF="${CKPT%.ckpt}.safetensors"
     if [ -f "$SF" ]; then

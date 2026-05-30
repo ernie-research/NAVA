@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
-CKPT="${CKPT:-NAVA.ckpt}"
+CKPT="${CKPT:-NAVA.safetensors}"
 CONFIG="${CONFIG:-configs/nava.yaml}"
 OUT_DIR="${OUT_DIR:-eval_results/timbre}"
 DATA_FILE="${DATA_FILE:-infer_cases/timbre/prompts.jsonl}"

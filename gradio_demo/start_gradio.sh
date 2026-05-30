@@ -17,7 +17,7 @@ MASTER_ADDR="127.0.0.1"
 MASTER_PORT=29508
 
 CONFIG="${CONFIG:-configs/nava.yaml}"
-CKPT="${CKPT:-NAVA.ckpt}"
+CKPT="${CKPT:-NAVA.safetensors}"
 REWRITE_MODEL="${REWRITE_MODEL:-pe_src/Qwen3-4B-Thinking-2507}"
 PORT="${PORT:-8000}"
 NPROC="${NPROC:-8}"

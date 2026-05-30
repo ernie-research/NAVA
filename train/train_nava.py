@@ -643,13 +643,13 @@ def main():
     if args.resume:
         resume_path = args.resume
         if not os.path.exists(resume_path):
-            sf_path = os.path.splitext(resume_path)[0] + ".safetensors"
-            if os.path.exists(sf_path):
+            ckpt_fallback = os.path.splitext(resume_path)[0] + ".ckpt"
+            if os.path.exists(ckpt_fallback):
                 if accelerator.is_main_process:
-                    print(f"[resume] {resume_path} not found, falling back to {sf_path}")
-                resume_path = sf_path
+                    print(f"[resume] {resume_path} not found, falling back to {ckpt_fallback}")
+                resume_path = ckpt_fallback
             else:
-                raise FileNotFoundError(f"Checkpoint not found: {resume_path} (also tried {sf_path})")
+                raise FileNotFoundError(f"Checkpoint not found: {resume_path} (also tried {ckpt_fallback})")
 
         if resume_path.endswith(".safetensors"):
             from safetensors.torch import load_file as _sf_load

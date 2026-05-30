@@ -53,7 +53,7 @@ pip install flash-attn --no-build-isolation
 
 > The vLLM and Gradio entries in `requirements.txt` are only needed for the prompt-rewrite server (`pe_src/`) and the interactive Web UI (`gradio_demo/`); comment them out if you don't use those paths.
 
-**2. Download weights** (one command pulls `NAVA.ckpt` and all dependencies into the project root):
+**2. Download weights** (one command pulls `NAVA.safetensors` and all dependencies into the project root):
 
 ```bash
 huggingface-cli download ernie-research/NAVA --local-dir ./
@@ -168,7 +168,7 @@ Each GPU independently processes a slice of the input JSONL — best for many-pr
 bash scripts/inference_batch.sh
 
 # Custom paths:
-CKPT=/path/to/your.ckpt \
+CKPT=/path/to/your.safetensors \
 DATA_FILE=/path/to/prompts.jsonl \
 OUT_DIR=eval_results/batch_run1 \
 bash scripts/inference_batch.sh
@@ -186,7 +186,7 @@ SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --master_port=29507 \
     inference_nava.py \
     --config configs/nava.yaml \
-    --ckpt your_nava_checkpoint.ckpt \
+    --ckpt NAVA.safetensors \
     --out_dir ./eval_results_sp \
     --data_format json \
     --data_file your_data.jsonl \
@@ -253,7 +253,7 @@ Or with custom paths:
 ```bash
 bash gradio_demo/start_gradio.sh \
     --config /path/to/config.yaml \
-    --ckpt /path/to/checkpoint.ckpt \
+    --ckpt /path/to/NAVA.safetensors \
     --rewrite_model /path/to/Qwen3-4B-Thinking-2507 \
     --port 8000 \
     --nproc 8 \
@@ -388,10 +388,10 @@ accelerate launch --config_file fsdp_config_auto.yaml \
 # Weights only — reset step to 0 (for fine-tuning)
 accelerate launch --config_file fsdp_config_auto.yaml \
     train_nava.py --config configs/nava.yaml \
-    --resume NAVA.ckpt --load_ckpt_only
+    --resume NAVA.safetensors --load_ckpt_only
 ```
 
-Both `.ckpt` and `.safetensors` checkpoints are supported. When a `.ckpt` path is given but not found, the loader automatically falls back to the matching `.safetensors` file. Safetensors files contain weights only and always behave like `--load_ckpt_only`.
+Both `.safetensors` and `.ckpt` checkpoints are supported. If the given path is not found, the loader automatically falls back to the `.ckpt` variant. Safetensors files contain weights only and always behave like `--load_ckpt_only`.
 
 ### Key Hyperparameters
 
@@ -459,7 +459,7 @@ The single `huggingface-cli download` in [Quick Start](#quick-start) pulls every
 
 | Path | Description |
 |---|---|
-| `NAVA.ckpt` | 24 GB — NAVA model weights |
+| `NAVA.safetensors` | 24 GB — NAVA model weights |
 | `nava.yaml` | Inference config (drop-in replacement for `configs/nava.yaml`) |
 | `config.json` | Model architecture config |
 | `example_prompts.jsonl` | Example JSONL prompts covering T2AV, T2A, timbre control, and I2AV |

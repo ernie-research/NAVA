@@ -17,7 +17,7 @@ cd "$REPO_ROOT"
 
 LANG="${LANG:-zh}"  # zh | en
 
-CKPT="${CKPT:-NAVA.ckpt}"
+CKPT="${CKPT:-NAVA.safetensors}"
 CONFIG="${CONFIG:-configs/nava_seedtts.yaml}"
 OUT_DIR="${OUT_DIR:-eval_results/seedtts/${LANG}}"
 DATA_FILE="${DATA_FILE:-infer_cases/meta.lst}"

@@ -1,14 +1,14 @@
-# NAVA 训练说明
+# NAVA Training Guide
 
-## 1. 数据格式
+## 1. Data Format
 
-### 1.1 数据文件（JSONL）
+### 1.1 Data File (JSONL)
 
-每个数据集是一个 JSONL 文件，每行一条样本，字段如下：
+Each dataset is a JSONL file with one sample per line:
 
 ```json
 {
-  "data_id": "唯一标识",
+  "data_id": "unique_id",
   "video_info": [
     {
       "data_path": "/abs/path/to/video.mp4",
@@ -20,7 +20,7 @@
   ],
   "text_list": [
     {
-      "text": "视频描述文本，台词用 <S>...</E> 包裹，例如：他说：<S>你好<E>",
+      "text": "Video caption; speech spans wrapped in <S>...<E>, e.g.: he said: <S>Hello<E>",
       "text_type": "caption",
       "speech_start": [0.0],
       "speech_end":   [2.76]
@@ -30,29 +30,29 @@
     {
       "audio_duration": 3.0,
       "audio_info": {
-        "caption_data": { ... }
+        "caption_data": {}
       }
     }
   ]
 }
 ```
 
-关键字段说明：
+Key fields:
 
-- `video_info[0].data_path`：视频文件绝对路径，训练时同时作为视频源和音频源使用
-- `text_list[0].text`：prompt，台词片段用 `<S>...</E>` 标记，模型据此学习音视频对齐
-- `text_list[0].speech_start/speech_end`：台词时间戳（秒），用于提取 speaker embedding
-- `audio_splits_info_tagging`：音频质量/内容标注，训练时用于过滤无效样本
+- `video_info[0].data_path` — absolute path to the video file, used as both the video and audio source during training.
+- `text_list[0].text` — prompt; speech spans are marked with `<S>...<E>` for the model to learn audio-visual alignment.
+- `text_list[0].speech_start/speech_end` — speech timestamps in seconds, used to extract speaker embeddings.
+- `audio_splits_info_tagging` — audio quality / content annotations; used to filter invalid samples during training.
 
-`text_to_audio`（纯音频）样本与上述格式相同，区别是训练时不使用 `video_info`，只对音频做编码。
+`text_to_audio` (audio-only) samples use the same format. The difference is that `video_info` is ignored — only the audio track is encoded.
 
 ---
 
-## 2. 数据列表与权重文件
+## 2. Data List and Weight Files
 
-### 2.1 数据列表（`.list`）
+### 2.1 Data List (`.list`)
 
-格式：`<idx>\t<set_name>\t<jsonl_path>` 或 `<idx>\t<jsonl_path>`
+Format: `<idx>\t<set_name>\t<jsonl_path>` or `<idx>\t<jsonl_path>`
 
 ```
 0	av_set1	data/av_set1/train_av_demo.json
@@ -60,134 +60,133 @@
 2	audio_set1	data/audio_set1/train_av_demo.json
 ```
 
-- 第一列：序号（任意整数）
-- 第二列：数据集名称（`set_name`，需与权重文件中的 key 对应）
-- 第三列：JSONL 文件路径（相对于项目根目录）
+- Column 1: index (any integer).
+- Column 2: dataset name (`set_name`), must match the key in the weight file.
+- Column 3: path to the JSONL file (relative to the project root).
 
-三列格式时 `set_name` 作为索引键；两列格式时路径本身作为键。
+In the 3-column format `set_name` is used as the lookup key; in the 2-column format the path itself is the key.
 
-### 2.2 权重文件（`.weight`）
+### 2.2 Weight File (`.weight`)
 
-格式：`<set_name>\t<weight>\t<modal>`
+Format: `<set_name>\t<weight>\t<modal>`
 
-**纯 AV 训练（`av_data_demo.weight`）：**
+**AV-only training (`av_data_demo.weight`):**
 ```
 av_set1	1	text_to_av
 av_set2	2	text_to_av
 ```
 
-**混训（`av_data_demo_mix.weight`）：**
+**Mixed training (`av_data_demo_mix.weight`):**
 ```
 av_set1	1	text_to_av
 av_set2	2	text_to_av
 audio_set1	1	text_to_audio
 ```
 
-字段说明：
+| Field | Description |
+|-------|-------------|
+| `set_name` | Matches column 2 in the `.list` file |
+| `weight` | Relative sampling weight — higher means sampled more often |
+| `modal` | Training modality, determines which training branch this dataset feeds |
 
-| 字段 | 含义 |
-|------|------|
-| `set_name` | 与 `.list` 中第二列对应 |
-| `weight` | 该数据集的采样权重（相对值，数值越大采样越频繁） |
-| `modal` | 训练模态，决定该数据集走哪条训练分支 |
+Supported `modal` values:
 
-支持的 `modal` 值：
+| modal | Task |
+|-------|------|
+| `text_to_av` | Joint audio + video generation (main task) |
+| `text_to_audio` | Audio-only generation |
+| `text_to_video` | Video-only generation |
+| `text_to_image` | Image-only generation |
 
-| modal | 训练内容 |
-|-------|---------|
-| `text_to_av` | 同时生成视频 + 音频（主任务） |
-| `text_to_audio` | 仅生成音频（纯音频任务） |
-| `text_to_video` | 仅生成视频 |
-| `text_to_image` | 仅生成图像 |
-
-**采样逻辑**：训练时按各数据集 weight 做加权随机采样，同一模态内多个数据集之间按 weight 比例混合。例如上例中 `av_set2` 的采样概率是 `av_set1` 的 2 倍。
+**Sampling logic**: at each step, a dataset is drawn with probability proportional to its weight. Multiple datasets within the same modality are mixed at their weight ratio. In the example above, `av_set2` is sampled twice as often as `av_set1`.
 
 ---
 
-## 3. 配置文件
+## 3. Config Files
 
-### 3.1 纯 AV 训练（`configs/nava.yaml`）
+### 3.1 AV-only Training (`configs/nava.yaml`)
 
 ```yaml
 data:
   data_filelist: data/av_data_demo.list
-  data_weights: data/av_data_demo.weight   # 只含 text_to_av 的 weight 文件
+  data_weights: data/av_data_demo.weight   # weight file with text_to_av only
 
   modal_prob:
-    text_to_audio: 0.0   # 不启用纯音频任务
+    text_to_audio: 0.0   # audio-only task disabled
     text_to_video: 0.0
     text_to_image: 0.0
-    text_to_av: 1        # 全部走 AV 联合生成
+    text_to_av: 1        # all samples go through joint AV generation
 ```
 
-`modal_prob` 是各模态**任务级别**的开关：值 > 0 才会从对应模态的数据源里采样。配合 weight 文件使用——weight 文件决定数据集内部的采样比例，`modal_prob` 决定不同任务之间的总体比例。
+`modal_prob` is a per-task switch: a modality is only sampled when its value is > 0. It works together with the weight file — the weight file controls the sampling ratio within each modality; `modal_prob` controls the overall ratio across tasks.
 
-### 3.2 混训（`configs/nava_mixtrain.yaml`）
+### 3.2 Mixed Training (`configs/nava_mixtrain.yaml`)
 
 ```yaml
 data:
   data_filelist: data/av_data_demo.list
-  data_weights: data/av_data_demo_mix.weight  # 含 text_to_av + text_to_audio 的 weight 文件
+  data_weights: data/av_data_demo_mix.weight  # weight file with text_to_av + text_to_audio
 
   modal_prob:
-    text_to_audio: 1     # 启用纯音频任务
+    text_to_audio: 1     # audio-only task enabled
     text_to_video: 0.0
     text_to_image: 0.0
-    text_to_av: 1        # 同时启用 AV 联合任务
+    text_to_av: 1        # joint AV task also enabled
 
-grad_accum_steps: 4      # 混训时建议开大，保证每个 AV 样本都有梯度
+grad_accum_steps: 4      # recommended for mixed training to ensure every AV sample gets gradients
 ```
 
-混训时需要同时满足两个条件：
-1. weight 文件中有 `text_to_audio` 行（数据源）
-2. config 中 `modal_prob.text_to_audio > 0`（任务开关打开）
+Mixed training requires both conditions to be met simultaneously:
+1. The weight file contains `text_to_audio` rows (data source).
+2. `modal_prob.text_to_audio > 0` in the config (task switch is on).
 
-两者缺一不可，否则纯音频数据不会被采样。
+If either is missing, audio-only samples will not be drawn.
 
-### 3.3 其他关键配置项
+### 3.3 Other Key Config Options
 
 ```yaml
 data:
-  video_fps: 24              # 视频采样帧率
-  video_tgt_frames: 121      # 目标帧数（121 = 5秒@24fps，需满足 4N+1）
-  max_audio_duration: 10.0   # 最长音频时长（秒）
-  add_spk_emb: true          # 是否提取 speaker embedding
-  spk_emb_prob: 0.9          # speaker embedding 使用概率
+  video_fps: 24              # video sampling frame rate
+  video_tgt_frames: 121      # target frame count (121 = 5 s @ 24 fps; must satisfy 4N+1)
+  max_audio_duration: 10.0   # maximum audio duration in seconds
+  add_spk_emb: true          # whether to extract speaker embeddings
+  spk_emb_prob: 0.9          # speaker embedding injection probability
 
-  use_length_buckets: true   # 启用长度分桶，相同时长的样本聚在一起（默认 false，需显式开启）
-  num_length_buckets: 5      # 分桶数量
-  enable_ddp_bucket_sync: true  # 多卡间同步桶分配
+  use_length_buckets: true   # group samples of similar length into the same batch (default false)
+  num_length_buckets: 5      # number of length buckets
+  enable_ddp_bucket_sync: true  # synchronize bucket assignment across GPUs
 
-audio_loss_coff: 0.2         # 音频 loss 权重
-vision_loss_coff: 1          # 视频 loss 权重
+audio_loss_coff: 0.2         # audio loss weight
+vision_loss_coff: 1          # video loss weight
 ```
 
 ---
 
-## 4. 启动训练
+## 4. Launching Training
 
-实际训练通过 `accelerate launch` 拉起，配合自动生成的 FSDP 配置文件，单机 8 卡 FSDP（`FULL_SHARD`，bf16），从项目根目录执行。
+Training is launched via `accelerate launch` with an auto-generated FSDP config. All scripts run single-node 8-GPU FSDP (`FULL_SHARD`, bf16) from the project root.
 
-| 脚本 | 用途 |
-|------|------|
-| `train/train_nava_scarch_mix.sh` | 从零开始混训（scratch）：无 `--resume`，使用 `configs/nava_mixtrain.yaml` |
-| `train/train_nava_sft.sh` | SFT / fine-tune：从已有 checkpoint 加载权重，**不恢复**步数和数据游标，从 step 0 重新训练 |
+| Script | Purpose |
+|--------|---------|
+| `train/train_nava_scarch_mix.sh` | Mixed AV + audio-only training, warm-started from Wan2.2-5B weights (`configs/nava_mixtrain.yaml`) |
+| `train/train_nava_sft.sh` | SFT / fine-tune: load weights from an existing checkpoint, reset step counter and data cursor |
 
-### 从零开始混训
+### Mixed Training from Wan2.2-5B Warm Start
 
 ```bash
 bash train/train_nava_scarch_mix.sh
 ```
 
-等价于：
+Equivalent to:
 
 ```bash
 accelerate launch --config_file fsdp_config_auto.yaml \
     train/train_nava.py \
-    --config configs/nava_mixtrain.yaml
+    --config configs/nava_mixtrain.yaml \
+    --resume Wan_5B.ckpt --load_ckpt_only
 ```
 
-使用 `nava_mixtrain.yaml`（`modal_prob.text_to_audio: 1`，`grad_accum_steps: 4`），同时训练 AV 联合生成和纯音频生成。
+Uses `nava_mixtrain.yaml` (`modal_prob.text_to_audio: 1`, `grad_accum_steps: 4`). Warm-starts from `Wan_5B.ckpt` (weights only, step counter reset). Download `Wan_5B.ckpt` from [Wan-AI/Wan2.2-TI2V-5B](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) and place it in the project root before running.
 
 ### SFT / Fine-tune
 
@@ -195,38 +194,38 @@ accelerate launch --config_file fsdp_config_auto.yaml \
 bash train/train_nava_sft.sh
 ```
 
-等价于：
+Equivalent to:
 
 ```bash
 accelerate launch --config_file fsdp_config_auto.yaml \
     train/train_nava.py \
     --config configs/nava.yaml \
-    --resume NAVA.ckpt \
-    --load_ckpt_only        # 只取权重，步数和数据位置重置
+    --resume NAVA.safetensors \
+    --load_ckpt_only        # load weights only; step and data position are reset
 ```
 
-在预训练好的 checkpoint 基础上换新数据集从头训练。使用前将脚本中的 `NAVA.ckpt` 替换为实际 checkpoint 路径。
+Starts training from step 0 on a new dataset, using an existing pretrained checkpoint as initialization. Replace `NAVA.safetensors` in the script with the actual checkpoint path before running.
 
 ---
 
-## 5. 断点续训（Resume）
+## 5. Resuming from a Checkpoint
 
-checkpoint 每隔 `save_every`（默认 2500）步保存一次，路径为：
+Checkpoints are saved every `save_every` steps (default 2500) at:
 
 ```
 {out_dir}/step{N}.ckpt
 ```
 
-checkpoint 内容：
+Checkpoint contents:
 
-| 字段 | 说明 |
-|------|------|
-| `state_dict` | 模型权重 |
-| `ema_state` | EMA 权重（若启用） |
-| `global_step` | 已训练步数 |
-| `data_state` | 数据读取游标，记录每个 worker 读到了哪里 |
+| Field | Description |
+|-------|-------------|
+| `state_dict` | Model weights |
+| `ema_state` | EMA weights (if enabled) |
+| `global_step` | Number of steps trained so far |
+| `data_state` | Per-worker data cursor — records how far each worker has read |
 
-### 完整 resume（权重 + 步数 + 数据位置）
+### Full Resume (weights + step + data position)
 
 ```bash
 accelerate launch --config_file fsdp_config_auto.yaml \
@@ -235,107 +234,107 @@ accelerate launch --config_file fsdp_config_auto.yaml \
     --resume outputs/your_run/step5000.ckpt
 ```
 
-恢复后训练从 `global_step=5000` 继续，数据从上次读取位置接续，不会重复消费已训练过的样本。
+Training resumes from `global_step=5000`; data continues from the last cursor position with no repeated samples.
 
-**多卡数量改变时**：`data_state` 的 worker 数量可能不匹配。代码会自动适配——取旧状态中各数据源的最大游标，广播给新的所有 worker，会有少量数据重复但不会遗漏。
+**When the number of GPUs changes**: the `data_state` worker count may not match. The code auto-adapts by broadcasting the maximum cursor across all data sources to every new worker — a small amount of data may be repeated but nothing is skipped.
 
-### 仅加载权重（`--load_ckpt_only`）
+### Weights Only (`--load_ckpt_only`)
 
-用于迁移学习或从预训练模型 fine-tune，**不恢复** `global_step` 和数据游标，训练从 step 0 重新开始：
+For transfer learning or fine-tuning from a pretrained model. `global_step` and data cursors are **not** restored; training starts from step 0:
 
 ```bash
 accelerate launch --config_file fsdp_config_auto.yaml \
     train_nava.py \
     --config configs/nava.yaml \
-    --resume path/to/pretrained.ckpt \
+    --resume path/to/pretrained.safetensors \
     --load_ckpt_only
 ```
 
 ---
 
-## 6. 超参传入
+## 6. Hyperparameters
 
-所有超参均通过 `--config` 指定的 yaml 文件控制，**不支持命令行逐参覆盖**。需要修改超参时直接编辑 yaml 或复制一份新 yaml。
+All hyperparameters are controlled via the YAML config file specified by `--config`. **There is no per-parameter CLI override** — edit the YAML directly or copy it to a new file.
 
-常用超参位置速查：
+Quick reference:
 
-| 超参 | yaml 路径 | 说明 |
-|------|-----------|------|
-| 学习率 | `lr` | 默认 `1e-4` |
-| batch size | `batch_size` | 单卡 batch |
-| 梯度累积 | `grad_accum_steps` | 等效 batch = batch_size × 卡数 × 该值 |
-| 最大步数 | `max_steps` | |
-| 保存间隔 | `save_every` | 单位：step |
-| 输出目录 | `out_dir` | checkpoint 和 tensorboard 写入此处 |
-| 音频 loss 权重 | `audio_loss_coff` | 默认 0.2 |
-| 视频 loss 权重 | `vision_loss_coff` | 默认 1.0 |
-| 目标帧数 | `data.video_tgt_frames` | 需满足 4N+1，如 121/241 |
-| 最小帧数 | `data.video_min_frames` | 短于此帧数的视频丢弃 |
-| 最大帧数 | `data.video_max_frames` | 长于此帧数的视频截断 |
-| 视频帧率 | `data.video_fps` | |
-| 最长音频 | `data.max_audio_duration` | 单位：秒 |
-| 长度分桶 | `data.use_length_buckets` | 默认 `false`，开启后相同时长样本聚批，训练更稳定 |
-| 分桶数量 | `data.num_length_buckets` | `use_length_buckets: true` 时生效，默认 5 |
-| 混合精度 | `amp_dtype` | `bf16` / `fp16` / `null` |
+| Hyperparameter | YAML key | Notes |
+|----------------|----------|-------|
+| Learning rate | `lr` | Default `1e-4` |
+| Batch size | `batch_size` | Per-GPU batch size |
+| Gradient accumulation | `grad_accum_steps` | Effective batch = batch_size × GPUs × this value |
+| Max steps | `max_steps` | |
+| Save interval | `save_every` | In steps |
+| Output directory | `out_dir` | Checkpoints and TensorBoard logs are written here |
+| Audio loss weight | `audio_loss_coff` | Default `0.2` |
+| Video loss weight | `vision_loss_coff` | Default `1.0` |
+| Target frames | `data.video_tgt_frames` | Must satisfy 4N+1, e.g. 121 / 241 |
+| Min frames | `data.video_min_frames` | Videos shorter than this are discarded |
+| Max frames | `data.video_max_frames` | Videos longer than this are truncated |
+| Video FPS | `data.video_fps` | |
+| Max audio duration | `data.max_audio_duration` | In seconds |
+| Length bucketing | `data.use_length_buckets` | Default `false`; when enabled, samples of similar length are batched together for more stable training |
+| Number of buckets | `data.num_length_buckets` | Effective when `use_length_buckets: true`; default 5 |
+| Mixed precision | `amp_dtype` | `bf16` / `fp16` / `null` |
 
 ---
 
-## 7. 异步数据加载
+## 7. Async Data Loading
 
-### 架构概览
+### Architecture Overview
 
 ```
-JSONL 文件
+JSONL files
     │
     ▼
-_fetch_raw_jsons()          ← 按 weight 加权随机从各数据源顺序读取原始 JSON
-    │  （producer 线程，逐条）
+_fetch_raw_jsons()          ← weighted random draw from data sources; reads raw JSON sequentially
+    │  (producer thread, one item at a time)
     ▼
-io_pool.submit(             ← ThreadPoolExecutor，并发 VAE encode（视频/音频）
+io_pool.submit(             ← ThreadPoolExecutor; concurrent VAE encode (video / audio)
     _process_item_concurrently
-)   × io_workers 个并发 future
+)   × io_workers concurrent futures
     │
     ▼
-modality_queues[modal]      ← 每个启用模态对应一个独立 Queue（先进先出）
+modality_queues[modal]      ← one independent Queue per enabled modality (FIFO)
     │  maxsize = queue_size × batch_size
     ▼
-__iter__() 消费者           ← 主训练循环从 Queue.get() 取 batch
+__iter__() consumer         ← main training loop calls Queue.get() to pull batches
 ```
 
-每个启用的模态（`text_to_av` / `text_to_audio` 等）各有：
-- **1 个 producer 线程**：负责读 JSON、提交 encode 任务、把结果放入 Queue
-- **共享 io_pool**：`io_workers` 个线程并发做 VAE encode（最耗时的操作）
+Each enabled modality (`text_to_av`, `text_to_audio`, etc.) gets:
+- **1 producer thread** — reads JSON, submits encode tasks, pushes results into the Queue.
+- **Shared `io_pool`** — `io_workers` threads that run VAE encode concurrently (the most expensive operation).
 
-Queue 满时 producer 自动阻塞（背压），不会无限堆积内存。
+When the Queue is full the producer blocks automatically (back-pressure), preventing unbounded memory accumulation.
 
-### `io_workers` 设置
+### `io_workers`
 
-控制并发 VAE encode 的线程数。VAE encode 是 GPU 操作，内部通过锁串行上 GPU（保证线程安全），所以 `io_workers` 实际控制的是**同时在排队等待 GPU 的样本数**，相当于 encode 流水线的窗口大小。
+Controls the number of concurrent VAE encode threads. VAE encode is a GPU operation; an internal lock serializes GPU access for thread safety, so `io_workers` effectively sets the **number of samples queued for GPU encode at any one time** — i.e., the pipeline window size.
 
-| 场景 | 建议值 |
-|------|--------|
-| 调试 / 单卡小显存 | `2–4` |
-| 正常训练 | `8–16` |
-| encode 速度跟不上训练 | 适当调大，但超过 GPU encode 吞吐后无意义 |
+| Scenario | Recommended value |
+|----------|-------------------|
+| Debugging / small GPU | `2–4` |
+| Normal training | `8–16` |
+| Encode can't keep up with training | Increase; but going beyond GPU encode throughput has no effect |
 
-对应 config 字段：`data.io_workers`
+Config key: `data.io_workers`
 
-### `queue_size` 设置
+### `queue_size`
 
-Queue 容量 = `queue_size × batch_size`。队列越大，对 encode 速度抖动的缓冲能力越强，但占用更多 CPU 内存（每个样本含完整 latent tensor）。
+Queue capacity = `queue_size × batch_size`. A larger queue absorbs encode-speed variance better, but uses more CPU memory (each slot holds a full latent tensor).
 
-| 场景 | 建议值 |
-|------|--------|
-| 内存紧张 | `4–8` |
-| 正常训练 | `16–32` |
-| 训练侧频繁等数据 | 先调大 `io_workers`，再考虑调大 `queue_size` |
+| Scenario | Recommended value |
+|----------|-------------------|
+| Memory-constrained | `4–8` |
+| Normal training | `16–32` |
+| Training frequently stalls waiting for data | Increase `io_workers` first, then consider increasing `queue_size` |
 
-对应 config 字段：`data.queue_size`
+Config key: `data.queue_size`
 
-### `num_workers` 设置
+### `num_workers`
 
-PyTorch DataLoader 的进程数。**开启 `enable_ddp_bucket_sync: true` 时强制为 0**（DDP 分桶同步需要在主进程运行 `dist.broadcast`），此时所有 IO 完全由内部 `io_workers` 线程接管。
+PyTorch DataLoader worker count. **Forced to 0 when `enable_ddp_bucket_sync: true`** (DDP bucket sync requires `dist.broadcast` in the main process). In that mode all I/O is handled by the internal `io_workers` threads.
 
-正常情况下保持 `num_workers: 0`，依赖 `io_workers` 做异步预取即可。
+Under normal circumstances keep `num_workers: 0` and rely on `io_workers` for async prefetching.
 
-> `num_workers` 同时影响断点续训时的 `data_state` shard 数量：`num_shards = num_workers × GPU数`（`num_workers=0` 时按 1 算）。改变该值 resume 时会触发游标自动适配，可能有少量数据重复。
+> `num_workers` also affects the `data_state` shard count on resume: `num_shards = num_workers × num_GPUs` (`num_workers=0` counts as 1). Changing this value triggers automatic cursor adaptation on resume, which may cause a small number of samples to be repeated.
