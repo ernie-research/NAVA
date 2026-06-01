@@ -347,6 +347,11 @@ def main():
                         metavar=("H", "W"), help="Latent tile 大小（默认 22 40，对应 latent 44×80）")
     parser.add_argument("--vae_tile_stride", type=int, nargs=2, default=[14, 26],
                         metavar=("H", "W"), help="Latent tile stride（默认 14 26）")
+    parser.add_argument("--weight_dtype", type=str, default="auto",
+                        choices=["auto", "bf16", "fp8_e4m3fn"],
+                        help="Checkpoint weight format. 'auto' detects fp8 by scanning the "
+                             "state-dict; 'fp8_e4m3fn' forces the fp8 patch path; 'bf16' "
+                             "is the original behavior (no patching).")
 
     args = parser.parse_args()
     use_rewrite = args.rewrite
@@ -420,6 +425,39 @@ def main():
     else:
         ckpt = torch.load(ckpt_path, map_location="cpu", mmap=True)
         state_dict = ckpt["state_dict"]
+
+    # ----- fp8 detection / patching -----
+    # If the checkpoint contains float8_e4m3fn tensors, swap every block-Linear
+    # in the freshly-built bf16 model with FP8Linear so load_state_dict can
+    # populate `weight` (fp8) and `weight_scale` (bf16) buffers correctly.
+    is_fp8_ckpt = any(
+        isinstance(v, torch.Tensor) and v.dtype == torch.float8_e4m3fn
+        for v in state_dict.values()
+    )
+    if args.weight_dtype == "fp8_e4m3fn":
+        use_fp8 = True
+    elif args.weight_dtype == "bf16":
+        use_fp8 = False
+    else:  # auto
+        use_fp8 = is_fp8_ckpt
+
+    if use_fp8 and not is_fp8_ckpt and is_main(rank):
+        print("[WARN] --weight_dtype=fp8_e4m3fn but checkpoint contains no fp8 tensors. "
+              "Patching anyway; load will likely report missing *_scale keys.")
+    if not use_fp8 and is_fp8_ckpt and is_main(rank):
+        print("[WARN] Checkpoint is fp8 but --weight_dtype=bf16 was requested. "
+              "Skipping the fp8 patch — outputs will be wrong. Did you mean 'auto'?")
+
+    if use_fp8:
+        from NAVA_FP8 import patch_model_to_fp8
+        n_patched = patch_model_to_fp8(pipe.model)
+        if is_main(rank):
+            n_fp8_keys = sum(
+                1 for v in state_dict.values()
+                if isinstance(v, torch.Tensor) and v.dtype == torch.float8_e4m3fn
+            )
+            print(f"[INFO] fp8 mode: patched {n_patched} Linear modules; "
+                  f"checkpoint has {n_fp8_keys} fp8 tensors")
 
     missing, unexpected = pipe.model.load_state_dict(state_dict, strict=False)
     if is_main(rank):

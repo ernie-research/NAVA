@@ -351,6 +351,7 @@ class AudioVideoPipeline(DiffusionPipeline):
         tiled_vae: bool = False,
         vae_tile_size: tuple = (44, 80),
         vae_tile_stride: tuple = (28, 52),
+        progress_callback=None,
     ):
         # num_steps = 1000
         """
@@ -456,7 +457,8 @@ class AudioVideoPipeline(DiffusionPipeline):
         effective_timbre = timbre_cfg and spk_embs is not None
 
         from tqdm.auto import tqdm
-        for t_v, t_a in tqdm(zip(timesteps, timesteps)):
+        total_steps = len(timesteps)
+        for step_idx, (t_v, t_a) in enumerate(tqdm(zip(timesteps, timesteps), total=total_steps)):
             t_v = t_v.to(device=device)
             t_a = t_a.to(device=device)
             if audio_guidance_scale == 1.0 or video_guidance_scale == 1.0:
@@ -545,6 +547,9 @@ class AudioVideoPipeline(DiffusionPipeline):
                         eps_audio = eps_cond_audio + audio_guidance_scale * (eps_cond_audio - eps_uncond_audio) + audio_align_guidance_scale * (eps_cond_audio - eps_mmask_cond_audio) + timbre_align_guidance_scale * (eps_cond_audio - eps_timbre_uncond_audio)
                     latents_audio = self.sample_scheduler_audio.step(eps_audio.to(torch.float32), t_a, latents_audio.to(torch.float32), return_dict=False)
                     latents_audio = latents_audio[0] if self.scheduler_unipc else latents_audio
+
+            if progress_callback is not None:
+                progress_callback(step_idx + 1, total_steps)
 
         # Offload backbone to CPU before VAE decode to free GPU memory
         if offload_backbone:

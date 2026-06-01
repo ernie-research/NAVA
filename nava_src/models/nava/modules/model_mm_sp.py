@@ -305,8 +305,31 @@ def _swap_self_attn(block: nn.Module, new_cls: type) -> None:
         qk_norm=old.qk_norm,
         eps=old.eps,
     )
+    # If the source has FP8Linear children, patch the freshly-built SP module
+    # the same way so it can absorb `*_scale` keys from old.state_dict().
+    # Lazy import keeps this file decoupled from NAVA_FP8 in pure bf16 runs.
+    try:
+        from NAVA_FP8.fp8_linear import FP8Linear
+        from NAVA_FP8.patching import patch_model_to_fp8
+        has_fp8 = any(isinstance(m, FP8Linear) for m in old.modules())
+    except ImportError:
+        has_fp8 = False
+    if has_fp8:
+        # `new` is an isolated self_attn module — the default whitelist regex
+        # in patch_model_to_fp8 expects the full backbone.*_blocks.<i>... path,
+        # which doesn't apply here. Patch every nn.Linear inside instead.
+        patch_model_to_fp8(
+            new,
+            should_patch=lambda path, mod: isinstance(mod, nn.Linear),
+        )
+
     new.load_state_dict(old.state_dict())
-    new.to(next(old.parameters()).device, dtype=next(old.parameters()).dtype)
+    if has_fp8:
+        # Mixed-dtype module (fp8 weights + bf16 scales/norms/bias) — only
+        # change the device, leave per-param dtypes alone.
+        new.to(next(old.parameters()).device)
+    else:
+        new.to(next(old.parameters()).device, dtype=next(old.parameters()).dtype)
     block.self_attn = new
 
 
