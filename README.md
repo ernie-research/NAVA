@@ -35,6 +35,7 @@ https://github.com/user-attachments/assets/a02cc83d-b5a3-42ac-9a77-952e0c3bd0fe
 - **Powerful TTS Synthesis** — High-quality speech generation including long, complex sentences in English; limited other languages' support.
 - **Text-Driven Camera Control** — Specify shot composition, camera motion, and pacing directly in the prompt.
 - **Flexible Aspect Ratios** — Generate landscape, portrait, and square videos from the same checkpoint.
+- **Strong Audio & Alignment from Scratch** — Video branch warm-started from a pretrained backbone; the audio branch and audio-visual alignment are trained entirely from scratch with limited compute, yet deliver strong synchronization and audio quality.
 
 ## Quick Start
 
