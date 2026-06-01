@@ -315,7 +315,11 @@ python gradio_demo/gradio_server.py --debug --port 8000
 
 For optimal generation quality, **always rewrite your prompt before inference** — especially if the input is in English or short. NAVA is primarily trained on **high-quality Chinese dense captions**; the rewriter expands a brief description into a single-paragraph cinematic prompt with explicit subject / scene / motion timeline / camera language / audio design — the format that activates the model's full potential.
 
-> **Tip — use a commercial LLM if you have access.** If you can call a strong commercial LLM (GPT, Gemini, Doubao, etc.), feed it the same rewrite system prompt (`pe_src/prompts/rewrite_template.txt`) with **thinking mode enabled** — the resulting prompt is consistently more accurate and well-formatted than what our 4B local rewriter produces. The bundled Qwen3-4B-Thinking-2507 path below is the local fallback when no commercial LLM is available; its output is usable but **less stable**, so always double-check that the result is well-formed (single paragraph, `<S>...<E>` spans preserved verbatim, no leftover thinking artifacts) before feeding it to NAVA.
+> [!TIP]
+> **Prefer a commercial LLM if available.**
+>
+> - **Best:** Call GPT / Gemini / Doubao etc. with **thinking mode on**, using the same system prompt at `pe_src/prompts/rewrite_template.txt`. Output is more accurate and better formatted.
+> - **Fallback:** The bundled Qwen3-4B-Thinking-2507 paths below — usable but **less stable**, always double-check the result is one paragraph, `<S>...<E>` preserved, no leftover thinking artifacts.
 
 We ship three rewrite pathways. **Pick by use case:**
 
