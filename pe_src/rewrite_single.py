@@ -61,7 +61,7 @@ def load_model(model_path: str, use_4bit: bool = False):
     return model, tokenizer
 
 
-def rewrite(model, tokenizer, user_input: str, max_new_tokens: int = 2048) -> str:
+def rewrite(model, tokenizer, user_input: str, max_new_tokens: int = 4096) -> str:
     """Run single rewrite inference."""
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -106,8 +106,8 @@ def main():
                         help="Model path (default: Qwen/Qwen3.5-9B)")
     parser.add_argument("--4bit", dest="use_4bit", action="store_true",
                         help="Use 4-bit quantization (saves ~50%% VRAM)")
-    parser.add_argument("--max-tokens", type=int, default=2048,
-                        help="Max output tokens (default: 2048)")
+    parser.add_argument("--max-tokens", type=int, default=4096,
+                        help="Max output tokens (default: 4096)")
     args = parser.parse_args()
 
     # Get input prompt

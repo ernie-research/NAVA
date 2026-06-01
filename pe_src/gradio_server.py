@@ -97,7 +97,7 @@ class PromptRewriter:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=2048,
+                max_new_tokens=4096,
                 temperature=0.3,
                 top_p=0.75,
                 top_k=20,
