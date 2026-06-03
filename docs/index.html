@@ -69,6 +69,14 @@ em,i{font-family:'Source Serif 4',Georgia,serif;font-style:italic;font-weight:40
   position:relative;padding:4px 0;
 }
 .nav-links a:hover{color:var(--ink)}
+.lang-toggle{
+  font-family:inherit;font-size:13px;font-weight:600;
+  color:var(--text-2);
+  background:#fff;border:1px solid var(--line);border-radius:6px;
+  padding:4px 10px;cursor:pointer;letter-spacing:.02em;
+  transition:color .15s,border-color .15s,background .15s;
+}
+.lang-toggle:hover{color:var(--ink);border-color:var(--text-3);background:var(--paper-2)}
 
 /* ===== hero (light, refined) ===== */
 .hero{
@@ -433,11 +441,12 @@ footer{
       <span>NAVA</span>
     </a>
     <div class="nav-links">
-      <a href="#abstract">Abstract</a>
-      <a href="#method">Method</a>
-      <a href="#results">Results</a>
-      <a href="#showcase">Showcase</a>
-      <a href="#bibtex">BibTeX</a>
+      <a href="#abstract" data-i18n="nav.abstract">Abstract</a>
+      <a href="#method" data-i18n="nav.method">Method</a>
+      <a href="#results" data-i18n="nav.results">Results</a>
+      <a href="#showcase" data-i18n="nav.showcase">Showcase</a>
+      <a href="#bibtex" data-i18n="nav.bibtex">BibTeX</a>
+      <button id="site-lang-toggle" class="lang-toggle" type="button" title="Switch site language">中文</button>
     </div>
   </div>
 </nav>
@@ -447,26 +456,26 @@ footer{
   <div class="hero-inner">
     <img class="hero-logo" src="assets/logo.png" alt="NAVA logo">
     <div class="venue"><span class="dot"></span><span>arXiv · 2026</span></div>
-    <h1>Native Audio-Visual Alignment for Generation</h1>
-    <p class="sub">A native alignment framework that achieves state-of-the-art audio-visual synchronization with only <b>6.3B</b> parameters.</p>
-    <p class="authors">ERNIE Team</p>
-    <p class="affiliation">Baidu Inc.</p>
+    <h1 data-i18n="hero.title">Native Audio-Visual Alignment for Generation</h1>
+    <p class="sub" data-i18n-html="hero.sub">A native alignment framework that achieves state-of-the-art audio-visual synchronization with only <b>6.3B</b> parameters.</p>
+    <p class="authors" data-i18n="hero.authors">ERNIE Team</p>
+    <p class="affiliation" data-i18n="hero.affiliation">Baidu Inc.</p>
     <div class="cta">
       <a class="btn primary" href="https://arxiv.org/abs/2605.30073">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Paper
+        <span data-i18n="hero.btn.paper">Paper</span>
       </a>
       <a class="btn" href="https://github.com/ernie-research/NAVA">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-        Code
+        <span data-i18n="hero.btn.code">Code</span>
       </a>
-      <a class="btn" href="https://huggingface.co/ernie-research/NAVA">
+      <a class="btn" href="https://huggingface.co/baidu/NAVA">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-        Model
+        <span data-i18n="hero.btn.model">Model</span>
       </a>
       <a class="btn" href="#showcase">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Showcase
+        <span data-i18n="hero.btn.showcase">Showcase</span>
       </a>
     </div>
   </div>
@@ -486,13 +495,13 @@ footer{
 <!-- ===== highlights ===== -->
 <section id="highlights">
   <div class="container reveal">
-    <div class="section-tag">Highlights</div>
+    <div class="section-tag" data-i18n="hl.tag">Highlights</div>
     <div class="highlights">
-      <div class="hl-item"><span class="hl-icon">&#9889;</span>720p 1min Fast Generation</div>
-      <div class="hl-item"><span class="hl-icon">&#127925;</span>Dual-Channel Audio</div>
-      <div class="hl-item"><span class="hl-icon">&#127908;</span>Precise Multi-Timbre Control</div>
-      <div class="hl-item"><span class="hl-icon">&#127909;</span>Language-Described Camera Control</div>
-      <div class="hl-item"><span class="hl-icon">&#128249;</span>Multi-Resolution (Landscape / Portrait / Square)</div>
+      <div class="hl-item"><span class="hl-icon">&#9889;</span><span data-i18n="hl.fast">720p 1min Fast Generation</span></div>
+      <div class="hl-item"><span class="hl-icon">&#127925;</span><span data-i18n="hl.dual">Dual-Channel Audio</span></div>
+      <div class="hl-item"><span class="hl-icon">&#127908;</span><span data-i18n="hl.timbre">Precise Multi-Timbre Control</span></div>
+      <div class="hl-item"><span class="hl-icon">&#127909;</span><span data-i18n="hl.camera">Language-Described Camera Control</span></div>
+      <div class="hl-item"><span class="hl-icon">&#128249;</span><span data-i18n="hl.resolution">Multi-Resolution (Landscape / Portrait / Square)</span></div>
     </div>
   </div>
 </section>
@@ -500,14 +509,14 @@ footer{
 <!-- ===== abstract ===== -->
 <section id="abstract">
   <div class="container reveal">
-    <div class="section-tag">Abstract</div>
-    <h2 class="section-title">A native space where audio and video co-evolve.</h2>
+    <div class="section-tag" data-i18n="abs.tag">Abstract</div>
+    <h2 class="section-title" data-i18n="abs.title">A native space where audio and video co-evolve.</h2>
     <div class="abstract-wrap">
       <div class="abstract">
-        <p>Joint audio-video generation aims to synthesize temporally synchronized and semantically coherent visual and acoustic content. Existing open-source methods mainly follow dual-tower designs, which generate audio and video in separate streams and rely on posterior alignment, or fully unified tri-modal designs, which mix textual context, audio, and video in a single shared space. These paradigms either weaken fine-grained audio-video co-evolution or couple semantic conditioning with low-level synchronization.</p>
-        <p>We propose <span class="kw">NAVA</span>, a Native Audio-Visual Alignment framework that formulates generation as <i>context-conditioned native audio-visual alignment</i>. NAVA first establishes audio-video correspondence in a dedicated alignment space and then applies context as external conditioning to guide the aligned representation.</p>
-        <p>We instantiate this formulation with an <span class="kw">Align-then-Fuse MMDiT</span> architecture, which progressively bridges modality-aware alignment and unified audio-video denoising. To support controllable speech generation, we further introduce <span class="kw">Timbre-in-Context Conditioning</span>, which binds reference timbre cues to corresponding speech spans through the context pathway.</p>
-        <p>Experiments on Verse-Bench and the Seed-TTS benchmark demonstrate that NAVA achieves superior audio-visual synchronization and video quality, competitive audio quality, and substantially improved reference-timbre controllability with only <b>6.3B</b> parameters.</p>
+        <p data-i18n-html="abs.p1">Joint audio-video generation aims to synthesize temporally synchronized and semantically coherent visual and acoustic content. Existing open-source methods mainly follow dual-tower designs, which generate audio and video in separate streams and rely on posterior alignment, or fully unified tri-modal designs, which mix textual context, audio, and video in a single shared space. These paradigms either weaken fine-grained audio-video co-evolution or couple semantic conditioning with low-level synchronization.</p>
+        <p data-i18n-html="abs.p2">We propose <span class="kw">NAVA</span>, a Native Audio-Visual Alignment framework that formulates generation as <i>context-conditioned native audio-visual alignment</i>. NAVA first establishes audio-video correspondence in a dedicated alignment space and then applies context as external conditioning to guide the aligned representation.</p>
+        <p data-i18n-html="abs.p3">We instantiate this formulation with an <span class="kw">Align-then-Fuse MMDiT</span> architecture, which progressively bridges modality-aware alignment and unified audio-video denoising. To support controllable speech generation, we further introduce <span class="kw">Timbre-in-Context Conditioning</span>, which binds reference timbre cues to corresponding speech spans through the context pathway.</p>
+        <p data-i18n-html="abs.p4">Experiments on Verse-Bench and the Seed-TTS benchmark demonstrate that NAVA achieves superior audio-visual synchronization and video quality, competitive audio quality, and substantially improved reference-timbre controllability with only <b>6.3B</b> parameters.</p>
       </div>
     </div>
   </div>
@@ -516,11 +525,11 @@ footer{
 <!-- ===== method ===== -->
 <section id="method">
   <div class="container reveal">
-    <div class="section-tag">Method</div>
-    <h2 class="section-title">Align-then-Fuse MMDiT.</h2>
+    <div class="section-tag" data-i18n="method.tag">Method</div>
+    <h2 class="section-title" data-i18n="method.title">Align-then-Fuse MMDiT.</h2>
     <div class="figure">
       <img src="assets/arch.png" alt="NAVA Architecture">
-      <p class="figcaption"><span class="num">Figure 1.</span> Overview of NAVA. Hierarchical Alignment Layers establish audio-video correspondence in a dedicated alignment space; Unified Fusion Layers then perform context-conditioned denoising. Timbre-in-Context Conditioning binds reference timbre cues to speech spans via the context pathway.</p>
+      <p class="figcaption" data-i18n-html="method.cap"><span class="num">Figure 1.</span> Overview of NAVA. Hierarchical Alignment Layers establish audio-video correspondence in a dedicated alignment space; Unified Fusion Layers then perform context-conditioned denoising. Timbre-in-Context Conditioning binds reference timbre cues to speech spans via the context pathway.</p>
     </div>
   </div>
 </section>
@@ -528,11 +537,11 @@ footer{
 <!-- ===== results ===== -->
 <section id="results">
   <div class="container reveal">
-    <div class="section-tag">Quantitative Results</div>
-    <h2 class="section-title">State-of-the-art with 6.3B parameters.</h2>
+    <div class="section-tag" data-i18n="res.tag">Quantitative Results</div>
+    <h2 class="section-title" data-i18n="res.title">State-of-the-art with 6.3B parameters.</h2>
 
-    <p class="tbl-title"><span class="num">Table 1.</span>General Capability on VerseBench</p>
-    <p class="tbl-sub">NAVA achieves the best AV synchronization (Sync-C / Sync-D / IB) and video quality with the smallest parameter budget.</p>
+    <p class="tbl-title" data-i18n-html="res.t1.title"><span class="num">Table 1.</span>General Capability on VerseBench</p>
+    <p class="tbl-sub" data-i18n="res.t1.sub">NAVA achieves the best AV synchronization (Sync-C / Sync-D / IB) and video quality with the smallest parameter budget.</p>
     <div class="tbl-wrap">
       <table>
         <thead>
@@ -558,10 +567,10 @@ footer{
         </tbody>
       </table>
     </div>
-    <p class="legend"><span><code>↑</code> higher is better</span><span><code>↓</code> lower is better</span><span><b>Bold</b> = best</span><span><u>Underline</u> = 2nd best</span></p>
+    <p class="legend" data-i18n-html="res.legend"><span><code>↑</code> higher is better</span><span><code>↓</code> lower is better</span><span><b>Bold</b> = best</span><span><u>Underline</u> = 2nd best</span></p>
 
-    <p class="tbl-title"><span class="num">Table 2.</span>Timbre-Control Speech Performance</p>
-    <p class="tbl-sub">Audio-only models are listed as <i>reference</i> only — they are dedicated speech systems and not directly comparable. Among joint audio-video models, NAVA delivers speech quality close to dedicated audio-only systems.</p>
+    <p class="tbl-title" data-i18n-html="res.t2.title"><span class="num">Table 2.</span>Timbre-Control Speech Performance</p>
+    <p class="tbl-sub" data-i18n-html="res.t2.sub">Audio-only models are listed as <i>reference</i> only — they are dedicated speech systems and not directly comparable. Among joint audio-video models, NAVA delivers speech quality close to dedicated audio-only systems.</p>
     <div class="tbl-wrap">
       <table>
         <thead>
@@ -577,8 +586,8 @@ footer{
       </table>
     </div>
 
-    <p class="tbl-title" style="margin-top:56px"><span class="num">Table 3.</span>User Study</p>
-    <p class="tbl-sub">We conduct human GSB (Win / Tie / Lose) preference studies on both T2AV and TI2AV against open-source baselines (Ovi-1.1, LTX-2.3, MoVA, daVinci). NAVA achieves competitive <b>Overall Quality</b> across all comparisons and wins on <b>Audio-Visual Alignment</b> against all baselines.</p>
+    <p class="tbl-title" style="margin-top:56px" data-i18n-html="res.t3.title"><span class="num">Table 3.</span>User Study</p>
+    <p class="tbl-sub" data-i18n-html="res.t3.sub">We conduct human GSB (Win / Tie / Lose) preference studies on both T2AV and TI2AV against open-source baselines (Ovi-1.1, LTX-2.3, MoVA, daVinci). NAVA achieves competitive <b>Overall Quality</b> across all comparisons and wins on <b>Audio-Visual Alignment</b> against all baselines.</p>
     <div class="figure" style="margin-top:14px;max-width:1100px">
       <img src="assets/gsb_combined.png" alt="User study GSB results">
     </div>
@@ -604,9 +613,9 @@ footer{
 <!-- ===== showcase ===== -->
 <section id="showcase">
   <div class="container reveal">
-    <div class="section-tag">Showcase</div>
-    <h2 class="section-title">Generated samples.</h2>
-    <p style="color:var(--text-2);margin-bottom:36px;font-size:.98rem;line-height:1.7">All samples below are generated end-to-end by NAVA. Audio and video share a single denoising trajectory — No posterior alignment, No extra components.</p>
+    <div class="section-tag" data-i18n="show.tag">Showcase</div>
+    <h2 class="section-title" data-i18n="show.title">Generated samples.</h2>
+    <p style="color:var(--text-2);margin-bottom:36px;font-size:.98rem;line-height:1.7" data-i18n="show.intro">All samples below are generated end-to-end by NAVA. Audio and video share a single denoising trajectory — No posterior alignment, No extra components.</p>
 
     <div class="showcase-bar">
       <div class="tabs" role="tablist">
@@ -642,8 +651,8 @@ footer{
 <!-- ===== bibtex ===== -->
 <section id="bibtex">
   <div class="container reveal">
-    <div class="section-tag">BibTeX</div>
-    <h2 class="section-title">Cite this work.</h2>
+    <div class="section-tag" data-i18n="bib.tag">BibTeX</div>
+    <h2 class="section-title" data-i18n="bib.title">Cite this work.</h2>
     <div style="position:relative">
       <div class="bibtex" id="bibtex-block">@misc{ji2026nava,
       title         = {Native Audio-Visual Alignment for Generation},
@@ -662,15 +671,15 @@ footer{
 <!-- ===== acknowledgements ===== -->
 <section id="ack" style="padding-top:64px;padding-bottom:88px">
   <div class="container reveal">
-    <div class="section-tag">Acknowledgements</div>
+    <div class="section-tag" data-i18n="ack.tag">Acknowledgements</div>
     <div class="ack">
-      <p>We would like to thank the contributors to <a href="https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B">Wan2.2-TI2V-5B</a>, <a href="https://github.com/Lightricks/LTX-Video">LTX-Video</a>, <a href="https://github.com/IDRnD/ReDimNet">ReDimNet</a>, <a href="https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507">Qwen3</a>, and <a href="https://github.com/character-ai/Ovi">Ovi</a> for their great open-source work, which is helpful to this project.</p>
+      <p data-i18n-html="ack.body">We would like to thank the contributors to <a href="https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B">Wan2.2-TI2V-5B</a>, <a href="https://github.com/Lightricks/LTX-Video">LTX-Video</a>, <a href="https://github.com/IDRnD/ReDimNet">ReDimNet</a>, <a href="https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507">Qwen3</a>, and <a href="https://github.com/character-ai/Ovi">Ovi</a> for their great open-source work, which is helpful to this project.</p>
     </div>
   </div>
 </section>
 
 <footer>
-  <div>NAVA · Baidu Inc. · &copy; 2026</div>
+  <div data-i18n="footer">NAVA · Baidu Inc. · &copy; 2026</div>
 </footer>
 
 <script>
@@ -926,6 +935,152 @@ const io = new IntersectionObserver(entries=>{
   entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
 },{threshold:.08});
 document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* ===== site-wide language toggle (EN ↔ 中文) ===== */
+const I18N = {
+  en: {
+    'nav.abstract': 'Abstract',
+    'nav.method':   'Method',
+    'nav.results':  'Results',
+    'nav.showcase': 'Showcase',
+    'nav.bibtex':   'BibTeX',
+
+    'hero.title':       'Native Audio-Visual Alignment for Generation',
+    'hero.sub':         'A native alignment framework that achieves state-of-the-art audio-visual synchronization with only <b>6.3B</b> parameters.',
+    'hero.authors':     'ERNIE Team',
+    'hero.affiliation': 'Baidu Inc.',
+    'hero.btn.paper':    'Paper',
+    'hero.btn.code':     'Code',
+    'hero.btn.model':    'Model',
+    'hero.btn.showcase': 'Showcase',
+
+    'hl.tag':        'Highlights',
+    'hl.fast':       '720p 1min Fast Generation',
+    'hl.dual':       'Dual-Channel Audio',
+    'hl.timbre':     'Precise Multi-Timbre Control',
+    'hl.camera':     'Language-Described Camera Control',
+    'hl.resolution': 'Multi-Resolution (Landscape / Portrait / Square)',
+
+    'abs.tag':   'Abstract',
+    'abs.title': 'A native space where audio and video co-evolve.',
+    'abs.p1':    'Joint audio-video generation aims to synthesize temporally synchronized and semantically coherent visual and acoustic content. Existing open-source methods mainly follow dual-tower designs, which generate audio and video in separate streams and rely on posterior alignment, or fully unified tri-modal designs, which mix textual context, audio, and video in a single shared space. These paradigms either weaken fine-grained audio-video co-evolution or couple semantic conditioning with low-level synchronization.',
+    'abs.p2':    'We propose <span class="kw">NAVA</span>, a Native Audio-Visual Alignment framework that formulates generation as <i>context-conditioned native audio-visual alignment</i>. NAVA first establishes audio-video correspondence in a dedicated alignment space and then applies context as external conditioning to guide the aligned representation.',
+    'abs.p3':    'We instantiate this formulation with an <span class="kw">Align-then-Fuse MMDiT</span> architecture, which progressively bridges modality-aware alignment and unified audio-video denoising. To support controllable speech generation, we further introduce <span class="kw">Timbre-in-Context Conditioning</span>, which binds reference timbre cues to corresponding speech spans through the context pathway.',
+    'abs.p4':    'Experiments on Verse-Bench and the Seed-TTS benchmark demonstrate that NAVA achieves superior audio-visual synchronization and video quality, competitive audio quality, and substantially improved reference-timbre controllability with only <b>6.3B</b> parameters.',
+
+    'method.tag':   'Method',
+    'method.title': 'Align-then-Fuse MMDiT.',
+    'method.cap':   '<span class="num">Figure 1.</span> Overview of NAVA. Hierarchical Alignment Layers establish audio-video correspondence in a dedicated alignment space; Unified Fusion Layers then perform context-conditioned denoising. Timbre-in-Context Conditioning binds reference timbre cues to speech spans via the context pathway.',
+
+    'res.tag':      'Quantitative Results',
+    'res.title':    'State-of-the-art with 6.3B parameters.',
+    'res.t1.title': '<span class="num">Table 1.</span>General Capability on VerseBench',
+    'res.t1.sub':   'NAVA achieves the best AV synchronization (Sync-C / Sync-D / IB) and video quality with the smallest parameter budget.',
+    'res.legend':   '<span><code>↑</code> higher is better</span><span><code>↓</code> lower is better</span><span><b>Bold</b> = best</span><span><u>Underline</u> = 2nd best</span>',
+    'res.t2.title': '<span class="num">Table 2.</span>Timbre-Control Speech Performance',
+    'res.t2.sub':   'Audio-only models are listed as <i>reference</i> only — they are dedicated speech systems and not directly comparable. Among joint audio-video models, NAVA delivers speech quality close to dedicated audio-only systems.',
+    'res.t3.title': '<span class="num">Table 3.</span>User Study',
+    'res.t3.sub':   'We conduct human GSB (Win / Tie / Lose) preference studies on both T2AV and TI2AV against open-source baselines (Ovi-1.1, LTX-2.3, MoVA, daVinci). NAVA achieves competitive <b>Overall Quality</b> across all comparisons and wins on <b>Audio-Visual Alignment</b> against all baselines.',
+
+    'show.tag':   'Showcase',
+    'show.title': 'Generated samples.',
+    'show.intro': 'All samples below are generated end-to-end by NAVA. Audio and video share a single denoising trajectory — No posterior alignment, No extra components.',
+
+    'bib.tag':   'BibTeX',
+    'bib.title': 'Cite this work.',
+
+    'ack.tag':  'Acknowledgements',
+    'ack.body': 'We would like to thank the contributors to <a href="https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B">Wan2.2-TI2V-5B</a>, <a href="https://github.com/Lightricks/LTX-Video">LTX-Video</a>, <a href="https://github.com/IDRnD/ReDimNet">ReDimNet</a>, <a href="https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507">Qwen3</a>, and <a href="https://github.com/character-ai/Ovi">Ovi</a> for their great open-source work, which is helpful to this project.',
+
+    'footer': 'NAVA · Baidu Inc. · © 2026',
+  },
+  zh: {
+    'nav.abstract': '摘要',
+    'nav.method':   '方法',
+    'nav.results':  '实验结果',
+    'nav.showcase': '示例',
+    'nav.bibtex':   '引用',
+
+    'hero.title':       '原生音视频对齐生成框架',
+    'hero.sub':         '一个原生对齐框架，仅用 <b>6.3B</b> 参数即达到最先进的音视频同步效果。',
+    'hero.authors':     'ERNIE 团队',
+    'hero.affiliation': '百度公司',
+    'hero.btn.paper':    '论文',
+    'hero.btn.code':     '代码',
+    'hero.btn.model':    '模型',
+    'hero.btn.showcase': '示例',
+
+    'hl.tag':        '亮点',
+    'hl.fast':       '720p 一分钟快速生成',
+    'hl.dual':       '双声道音频',
+    'hl.timbre':     '精准多音色控制',
+    'hl.camera':     '语言描述的镜头控制',
+    'hl.resolution': '多分辨率（横屏 / 竖屏 / 方形）',
+
+    'abs.tag':   '摘要',
+    'abs.title': '让音频与视频共同演化的原生空间。',
+    'abs.p1':    '联合音视频生成旨在合成时间同步且语义连贯的视觉与声学内容。现有开源方法主要采用双塔结构——将音频与视频在独立流中生成并依赖事后对齐；或完全统一的三模态结构——将文本上下文、音频与视频混合在同一共享空间中。这些范式要么削弱了细粒度的音视频协同演化，要么将语义条件与底层同步耦合在一起。',
+    'abs.p2':    '我们提出 <span class="kw">NAVA</span>，一个原生音视频对齐框架，将生成建模为<i>上下文条件下的原生音视频对齐</i>。NAVA 首先在专用的对齐空间中建立音视频对应关系，再将上下文作为外部条件来引导已对齐的表征。',
+    'abs.p3':    '我们以 <span class="kw">Align-then-Fuse MMDiT</span> 架构来实例化该公式，逐步连接模态感知对齐与统一的音视频去噪。为支持可控的语音生成，我们进一步引入 <span class="kw">Timbre-in-Context 条件机制</span>，通过上下文通路将参考音色线索绑定到对应的语音片段。',
+    'abs.p4':    '在 Verse-Bench 与 Seed-TTS 基准上的实验表明，NAVA 仅用 <b>6.3B</b> 参数就实现了优越的音视频同步与视频质量、有竞争力的音频质量，以及显著提升的参考音色可控性。',
+
+    'method.tag':   '方法',
+    'method.title': 'Align-then-Fuse MMDiT。',
+    'method.cap':   '<span class="num">图 1.</span> NAVA 总览。层级对齐层在专用对齐空间中建立音视频对应关系；统一融合层随后执行上下文条件下的去噪。Timbre-in-Context 条件机制通过上下文通路，将参考音色线索绑定到语音片段。',
+
+    'res.tag':      '定量结果',
+    'res.title':    '以 6.3B 参数实现 SOTA。',
+    'res.t1.title': '<span class="num">表 1.</span>VerseBench 综合能力',
+    'res.t1.sub':   'NAVA 以最小的参数量取得了最佳的音视频同步（Sync-C / Sync-D / IB）与视频质量。',
+    'res.legend':   '<span><code>↑</code> 越高越好</span><span><code>↓</code> 越低越好</span><span><b>加粗</b> = 最佳</span><span><u>下划线</u> = 次佳</span>',
+    'res.t2.title': '<span class="num">表 2.</span>音色可控语音性能',
+    'res.t2.sub':   '纯音频模型仅作<i>参考</i>列出——它们是专用语音系统，不可直接比较。在联合音视频模型中，NAVA 的语音质量已接近专用纯音频系统。',
+    'res.t3.title': '<span class="num">表 3.</span>用户研究',
+    'res.t3.sub':   '我们在 T2AV 与 TI2AV 上对开源基线（Ovi-1.1、LTX-2.3、MoVA、daVinci）开展人类 GSB（胜 / 平 / 负）偏好评测。NAVA 在所有对比中的<b>整体质量</b>具竞争力，并在<b>音视频对齐</b>上全部胜出。',
+
+    'show.tag':   '示例',
+    'show.title': '生成样例。',
+    'show.intro': '以下所有样例均由 NAVA 端到端生成。音频与视频共享同一去噪轨迹——无事后对齐，无额外组件。',
+
+    'bib.tag':   '引用',
+    'bib.title': '引用本工作。',
+
+    'ack.tag':  '致谢',
+    'ack.body': '感谢 <a href="https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B">Wan2.2-TI2V-5B</a>、<a href="https://github.com/Lightricks/LTX-Video">LTX-Video</a>、<a href="https://github.com/IDRnD/ReDimNet">ReDimNet</a>、<a href="https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507">Qwen3</a> 与 <a href="https://github.com/character-ai/Ovi">Ovi</a> 的优秀开源工作，对本项目有所帮助。',
+
+    'footer': 'NAVA · 百度公司 · © 2026',
+  },
+};
+
+function setSiteLang(lang){
+  const dict = I18N[lang] || I18N.en;
+  document.documentElement.lang = (lang === 'zh') ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const k = el.getAttribute('data-i18n');
+    if(dict[k] !== undefined) el.textContent = dict[k];
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el=>{
+    const k = el.getAttribute('data-i18n-html');
+    if(dict[k] !== undefined) el.innerHTML = dict[k];
+  });
+  const btn = document.getElementById('site-lang-toggle');
+  if(btn) btn.textContent = (lang === 'zh') ? 'EN' : '中文';
+  try { localStorage.setItem('nava_site_lang', lang); } catch(e) {}
+}
+
+(function initSiteLang(){
+  let lang = 'en';
+  try { lang = localStorage.getItem('nava_site_lang') || 'en'; } catch(e) {}
+  if(lang !== 'zh') lang = 'en';
+  setSiteLang(lang);
+  const btn = document.getElementById('site-lang-toggle');
+  if(btn){
+    btn.addEventListener('click', ()=>{
+      const cur = document.documentElement.lang.startsWith('zh') ? 'zh' : 'en';
+      setSiteLang(cur === 'zh' ? 'en' : 'zh');
+    });
+  }
+})();
 </script>
 </body>
 </html>

@@ -351,6 +351,8 @@ class AudioVideoPipeline(DiffusionPipeline):
         tiled_vae: bool = False,
         vae_tile_size: tuple = (44, 80),
         vae_tile_stride: tuple = (28, 52),
+        vae_cpu_offload: bool = None,
+        decode: bool = True,
         progress_callback=None,
     ):
         # num_steps = 1000
@@ -376,11 +378,8 @@ class AudioVideoPipeline(DiffusionPipeline):
         spk_pos = []
 
         audio_negative_prompt = "机械音、闷糊、回音、失真、电流声、爆音、杂音"
-        if self.cfg.get("use_mmdit_model", False):
-            video_negative_prompt = "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走, 音频带有机械音、闷糊、回音、失真、电流声、爆音、杂音"
-        else:
-            video_negative_prompt = "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"        # text_embeddings_audio_neg, text_embeddings_image_neg, text_embeddings_video_neg = \
-
+        video_negative_prompt = video_negative_prompt = "画质模糊，多人同时说话，倒着走, 色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，音频带有机械音、闷糊、回音、失真、电流声、爆音、杂音"
+        
         # T5 offload: move encoder to GPU only for the duration of text encoding
         if getattr(self, '_t5_offload', False):
             self.text_model.model.to(device)
@@ -552,7 +551,9 @@ class AudioVideoPipeline(DiffusionPipeline):
                 progress_callback(step_idx + 1, total_steps)
 
         # Offload backbone to CPU before VAE decode to free GPU memory
-        if offload_backbone:
+        # (skipped on `decode=False` ranks — they bail out without touching the
+        # backbone, leaving it on GPU ready for the next sampling step.)
+        if decode and offload_backbone:
             if getattr(self, '_group_offload', False):
                 # Blocks are in pinned CPU buffers managed by hooks.
                 # Only move non-block modules (heads, embedders, etc.) to CPU.
@@ -571,10 +572,15 @@ class AudioVideoPipeline(DiffusionPipeline):
                 self.model.backbone.to("cpu")
             torch.cuda.empty_cache()
 
+        # Decoupled VAE offload flag: defaults to offload_backbone for back-compat
+        # but ComfyUI passes vae_cpu_offload=False to keep decode chunks on GPU
+        # (avoids per-chunk GPU→CPU transfer that throttles decode under SP).
+        _vae_off = vae_cpu_offload if vae_cpu_offload is not None else offload_backbone
+
         # 5) decode 成图
         start_idx = 0
         imgs, audio_list = None, None
-        if has_vision:
+        if decode and has_vision:
             latents = latents_vision
             vision_vae = self.image_vae if has_image else self.video_vae
             latents = (latents / vision_vae.config.scaling_factor) + vision_vae.config.shift_factor
@@ -584,7 +590,7 @@ class AudioVideoPipeline(DiffusionPipeline):
             if not save_vid_latent:
                 for t, h, w in t_h_w_list:
                     img_latent = latents[start_idx: start_idx + t * h * w].view(t, h, w, video_vae_dim)
-                    dec = vision_vae.decode(img_latent, cpu_offload=offload_backbone,
+                    dec = vision_vae.decode(img_latent, cpu_offload=_vae_off,
                                             tiled=tiled_vae, tile_size=vae_tile_size,
                                             tile_stride=vae_tile_stride)
                     img = dec.sample if hasattr(dec, "sample") else dec#(1,3,h,w)
@@ -612,7 +618,7 @@ class AudioVideoPipeline(DiffusionPipeline):
                     img_latent = latents[start_idx: start_idx + t * h * w].view(t, h, w, video_vae_dim)
                     img_list.append(img_latent.unsqueeze(0))
                 imgs = torch.cat(img_list, dim=0) #(B,3,256,256) or (B,T,3,256,256)
-        if has_audio:
+        if decode and has_audio:
             audio_list = []
             start_idx = 0
             latents_audio = (latents_audio / self.audio_vae.config.scaling_factor) + self.audio_vae.config.shift_factor
@@ -625,7 +631,8 @@ class AudioVideoPipeline(DiffusionPipeline):
                 start_idx += audio_len
 
         # Reload backbone for next sample after decode
-        if offload_backbone:
+        # (skipped on `decode=False` ranks — they never offloaded in the first place.)
+        if decode and offload_backbone:
             if getattr(self, '_group_offload', False):
                 # blocks are managed by hooks; only reload non-block static parts to GPU
                 for name, module in self.model.backbone.named_children():

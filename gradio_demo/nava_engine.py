@@ -242,8 +242,20 @@ class NAVAEngine:
         Run single inference. All ranks must call this together in SP mode.
         Returns: output video path (only meaningful on rank 0).
         """
-        # Reset seed before every generation so all ranks have identical random state
-        set_seed(self.cfg.get("seed", 42))
+        # Pick a fresh random seed every request. In SP mode all ranks must use
+        # the SAME seed so the per-step noise lines up — rank 0 generates it and
+        # broadcasts; rank 1-7 receive and apply.
+        if self.use_sp:
+            seed_t = torch.empty(1, dtype=torch.long, device=self.device)
+            if self.rank == 0:
+                seed_t.fill_(int(torch.randint(0, 2**31 - 1, (1,)).item()))
+            dist.broadcast(seed_t, src=0)
+            seed = int(seed_t.item())
+        else:
+            seed = int(torch.randint(0, 2**31 - 1, (1,)).item())
+        if self.rank == 0:
+            print(f"[Engine] Random seed for this request: {seed}")
+        set_seed(seed)
         # Sync all ranks before inference to ensure clean CUDA state
         if self.use_sp:
             torch.cuda.empty_cache()
@@ -281,10 +293,22 @@ class NAVAEngine:
                 timbre_cfg=self.cfg.get("timbre_cfg", False),
                 timbre_align_guidance_scale=self.cfg.get("timbre_align_guidance_scale", 3.0),
                 offload_backbone=True,
+                vae_cpu_offload=False,
+                decode=(self.rank == 0),
             )
 
-        # Mark backbone as offloaded (pipeline already moved it to CPU before decode)
-        self._backbone_on_gpu = False
+        # State after pipe.sample (with decode-only-on-rank-0):
+        #   - Rank 0: backbone was offloaded → decoded → reloaded to GPU
+        #   - Rank 1-7: backbone never moved, still on GPU from sampling
+        # Either way, every rank ends with backbone on GPU and ready for the
+        # next sample. Mark accordingly.
+        self._backbone_on_gpu = True
+
+        # Barrier so rank 1-7 don't race ahead into the next request before
+        # rank 0 finishes its VAE decode + save. (Strictly redundant with
+        # gradio_server's broadcast loop, but cheap insurance.)
+        if self.use_sp:
+            dist.barrier()
 
         # Restore original frames setting
         self.frames = orig_frames

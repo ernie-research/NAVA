@@ -355,7 +355,7 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
 
                 duration_input = gr.Slider(
                     minimum=2, maximum=10, value=6,
-                    step=2, label="Duration (seconds) — 6s = 37 frames"
+                    step=1, label="Duration (seconds) — 6s = 37 frames"
                 )
 
                 aspect_ratio_input = gr.Dropdown(
@@ -370,9 +370,15 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
             with gr.Column(scale=2):
                 video_output = gr.Video(label="Generated Video (with Audio)")
 
-        # Duration slider: update label to show frames
+        # Duration slider: update label to show frames.
+        # IMPORTANT: gr.update only carries the keys you pass, so we must include
+        # minimum/maximum/step here — otherwise they get reset to None and the
+        # next submit fails preprocess with `5 < None` TypeError.
         duration_input.change(
-            fn=lambda s: gr.update(label=f"Duration (seconds) — {int(s)}s = {int(s)*6+1} frames"),
+            fn=lambda s: gr.update(
+                label=f"Duration (seconds) — {int(s)}s = {int(s)*6+1} frames",
+                minimum=2, maximum=10, step=1,
+            ),
             inputs=[duration_input],
             outputs=[duration_input],
         )
@@ -458,7 +464,7 @@ def main():
                     steps_input = gr.Slider(minimum=10, maximum=100, value=50, step=5, label="Steps")
                     duration_input = gr.Slider(
                         minimum=2, maximum=10, value=6,
-                        step=2, label="Duration (seconds) — 6s = 37 frames"
+                        step=1, label="Duration (seconds) — 6s = 37 frames"
                     )
                     aspect_ratio_input = gr.Dropdown(
                         choices=list(ASPECT_RATIO_MAP.keys()),
