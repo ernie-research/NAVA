@@ -33,9 +33,13 @@ _PE_SRC = os.path.join(_NAVA_ROOT, "pe_src")
 # Fixed caption instruction. Kept simple per user request — Qwen3-VL gets
 # this system prompt and is asked to describe the image.
 # ---------------------------------------------------------------------------
-CAPTION_SYSTEM_PROMPT = "描述这张图的场景/人物细节。"
+CAPTION_SYSTEM_PROMPT = (
+    "你是一个视频生成提示词助手。用一段流畅的中文描述图片中的场景：人物外貌、动作、服装、背景环境、光线与色调、整体氛围。"
+    "不要使用markdown格式、不要分条列举、不要说"这张图"或"这是一张图片"，直接描述画面内容，像在描述一段正在发生的视频场景。"
+    "输出一段话，不超过150字。"
+)
 
-USER_INSTRUCTION = "请描述这张图片。"
+USER_INSTRUCTION = "请描述这张图片的视频场景。"
 
 
 # ---------------------------------------------------------------------------
@@ -152,11 +156,15 @@ def caption(
 
 
 def offload_all_to_cpu():
-    """No-op for device_map=auto models — accelerate manages placement."""
+    for model, _ in _CAPTIONER_CACHE.values():
+        model.to("cpu")
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
 
 def reload_to_gpu(model_path: str = "", use_4bit: bool = False):
-    """No-op — accelerate keeps the model on the correct devices."""
-    pass
+    resolved = _resolve_model_path(model_path)
+    key = (os.path.abspath(resolved) if os.path.exists(resolved) else resolved, bool(use_4bit))
+    if key in _CAPTIONER_CACHE:
+        model, _ = _CAPTIONER_CACHE[key]
+        model.to("cuda:0")

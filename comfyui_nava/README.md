@@ -53,9 +53,18 @@ Assembles scene description and dialogue into the prompt format NAVA expects.
 
 | mode | When to use | What to fill |
 |---|---|---|
-| `single_speaker` (default) | One person speaks | **speech** box — auto-wrapped in `<S>...<E>` |
-| `multi_speaker` | Two or more people speak | **dialogue** box — write `<S>...<E>` yourself per utterance |
+| `single_speaker` (default) | One person speaks | **speech** box — write role description + `<S>...<E>` yourself |
+| `multi_speaker` | Two or more people speak | **dialogue** box — write all utterances with `<S>...<E>` |
 | `silent` | No speech, environment audio only | Leave everything empty |
+
+**single_speaker speech example:**
+```
+张三抬起头说<S>我不去。<E>
+```
+or in English:
+```
+The man leans forward and says<S>Don't move.<E>
+```
 
 **multi_speaker dialogue example:**
 ```

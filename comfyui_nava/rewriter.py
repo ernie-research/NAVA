@@ -165,6 +165,14 @@ def rewrite(
 
 
 def offload_all_to_cpu():
-    """No-op for device_map=auto models — accelerate manages placement."""
+    # bitsandbytes 4-bit models cannot move to CPU — evict from cache instead so
+    # VRAM is actually freed before NAVA inference starts.
+    for key, (model, _) in list(_REWRITER_CACHE.items()):
+        _, is_4bit = key
+        if is_4bit:
+            del _REWRITER_CACHE[key]
+            del model
+        else:
+            model.to("cpu")
     if torch.cuda.is_available():
         torch.cuda.empty_cache()

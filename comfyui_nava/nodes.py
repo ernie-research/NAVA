@@ -819,14 +819,14 @@ class NAVAPromptCompose:
                 "speech": (
                     "STRING",
                     {"multiline": True, "default": "",
-                     "tooltip": "[single_speaker] The spoken line — just the words, no tags.\n"
-                                "Example: When I snap my finger, half of the people in this universe dies.\n"
-                                "<S>...<E> is added automatically."},
+                     "tooltip": "[single_speaker] Role description + spoken words wrapped in <S>...<E>.\n"
+                                "Example: 张三抬起头说<S>我不去。<E>\n"
+                                "Example: The man leans forward and says<S>Don't move.<E>"},
                 ),
                 "dialogue": (
                     "STRING",
                     {"multiline": True, "default": "",
-                     "tooltip": "[multi_speaker] Write each line with role description + <S>...<E>.\n"
+                     "tooltip": "[multi_speaker] All utterances on one line, each with role description + <S>...<E>.\n"
                                 "Example:\n"
                                 "Character A leans in and says<S>Drop the weapon. Now.<E> "
                                 "Character B smirks<S>You really think this ends here?<E>"},
@@ -856,8 +856,8 @@ class NAVAPromptCompose:
             dlg = self._normalize_dialogue(dialogue)
             out = f"{cap} {dlg}".strip() if cap else dlg
         else:  # single_speaker
-            spk = (speech or "").strip()
-            out = f"{cap} <S>{spk}<E>".strip() if spk else cap
+            spk = self._normalize_dialogue(speech)
+            out = f"{cap} {spk}".strip() if spk else cap
 
         out = out.strip()
         print(f"[NAVA-Compose] mode={mode} OUT:\n{out}")
