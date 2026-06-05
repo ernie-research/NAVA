@@ -83,6 +83,13 @@ def broadcast_int(val: int, src: int = 0):
     return t.item()
 
 
+def broadcast_float(val: float, src: int = 0):
+    """Broadcast a single float."""
+    t = torch.tensor([val], dtype=torch.float32, device="cuda")
+    dist.broadcast(t, src=src)
+    return t.item()
+
+
 # ============================================================
 # Rewrite model (rank 0 only, GPU + offload)
 # ============================================================
@@ -205,6 +212,13 @@ def worker_loop(engine: NAVAEngine):
             height = broadcast_int(0, src=0)
             width = broadcast_int(0, src=0)
             frames = broadcast_int(0, src=0)
+            video_cfg = broadcast_float(0, src=0)
+            audio_cfg = broadcast_float(0, src=0)
+            video_align_cfg = broadcast_float(0, src=0)
+            audio_align_cfg = broadcast_float(0, src=0)
+            align_3d_cfg = bool(broadcast_int(0, src=0))
+            timbre_cfg = bool(broadcast_int(0, src=0))
+            timbre_align_cfg = broadcast_float(0, src=0)
 
             # Build spk_wav_paths
             spk_wav_paths = []
@@ -223,6 +237,13 @@ def worker_loop(engine: NAVAEngine):
                 height=height,
                 width=width,
                 frames=frames,
+                video_cfg=video_cfg,
+                audio_cfg=audio_cfg,
+                video_align_cfg=video_align_cfg,
+                audio_align_cfg=audio_align_cfg,
+                align_3d_cfg=align_3d_cfg,
+                timbre_cfg=timbre_cfg,
+                timbre_align_cfg=timbre_align_cfg,
             )
 
 
@@ -242,7 +263,10 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
 
     def infer_fn(user_prompt: str, rewritten_prompt: str, image_file: str,
                  spk_wav_1: str, spk_wav_2: str,
-                 steps: int, duration_sec: int, aspect_ratio: str):
+                 steps: int, duration_sec: int, aspect_ratio: str,
+                 video_cfg: float, audio_cfg: float,
+                 video_align_cfg: float, audio_align_cfg: float,
+                 align_3d_cfg: bool, timbre_cfg: bool, timbre_align_cfg: float):
         """Main inference function triggered by Generate button.
         Uses rewritten_prompt if available, otherwise falls back to user_prompt.
         """
@@ -272,6 +296,13 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
         broadcast_int(height, src=0)
         broadcast_int(width, src=0)
         broadcast_int(frames, src=0)
+        broadcast_float(video_cfg, src=0)
+        broadcast_float(audio_cfg, src=0)
+        broadcast_float(video_align_cfg, src=0)
+        broadcast_float(audio_align_cfg, src=0)
+        broadcast_int(int(align_3d_cfg), src=0)
+        broadcast_int(int(timbre_cfg), src=0)
+        broadcast_float(timbre_align_cfg, src=0)
 
         # Build spk_wav_paths
         spk_wav_paths = []
@@ -290,6 +321,13 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
             height=height,
             width=width,
             frames=frames,
+            video_cfg=video_cfg,
+            audio_cfg=audio_cfg,
+            video_align_cfg=video_align_cfg,
+            audio_align_cfg=audio_align_cfg,
+            align_3d_cfg=align_3d_cfg,
+            timbre_cfg=timbre_cfg,
+            timbre_align_cfg=timbre_align_cfg,
         )
 
         # Reload rewriter back to GPU
@@ -364,6 +402,23 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
                     label="Aspect Ratio",
                 )
 
+                gr.Markdown("### CFG Parameters")
+                with gr.Row():
+                    video_cfg_input = gr.Slider(
+                        minimum=1.0, maximum=10.0, value=3.0, step=0.5, label="Video CFG")
+                    audio_cfg_input = gr.Slider(
+                        minimum=1.0, maximum=10.0, value=2.0, step=0.5, label="Audio CFG")
+                with gr.Row():
+                    video_align_cfg_input = gr.Slider(
+                        minimum=1.0, maximum=10.0, value=3.0, step=0.5, label="Video Align CFG")
+                    audio_align_cfg_input = gr.Slider(
+                        minimum=1.0, maximum=10.0, value=2.0, step=0.5, label="Audio Align CFG")
+                with gr.Row():
+                    align_3d_cfg_input = gr.Checkbox(value=True, label="Align 3D CFG")
+                    timbre_cfg_input = gr.Checkbox(value=True, label="Timbre CFG")
+                timbre_align_cfg_input = gr.Slider(
+                    minimum=1.0, maximum=10.0, value=3.0, step=0.5, label="Timbre Align CFG")
+
                 submit_btn = gr.Button("Generate", variant="primary", size="lg")
 
             # ---- Right: Outputs ----
@@ -395,7 +450,10 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
             fn=infer_fn,
             inputs=[prompt_input, rewritten_prompt, image_input,
                     spk_wav_1_input, spk_wav_2_input,
-                    steps_input, duration_input, aspect_ratio_input],
+                    steps_input, duration_input, aspect_ratio_input,
+                    video_cfg_input, audio_cfg_input,
+                    video_align_cfg_input, audio_align_cfg_input,
+                    align_3d_cfg_input, timbre_cfg_input, timbre_align_cfg_input],
             outputs=[video_output],
         )
 

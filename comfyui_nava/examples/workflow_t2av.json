@@ -1,0 +1,302 @@
+{
+  "last_node_id": 5,
+  "last_link_id": 5,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "NAVAModelLoader",
+      "pos": [
+        20,
+        60
+      ],
+      "size": {
+        "0": 400,
+        "1": 178
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "NAVA_MODEL",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVAModelLoader"
+      },
+      "widgets_values": [
+        "NAVA_fp8.safetensors",
+        "configs/nava.yaml",
+        true,
+        false,
+        10,
+        "fp8_e4m3fn"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "NAVAPromptRewriter",
+      "pos": [
+        480,
+        60
+      ],
+      "size": {
+        "0": 420,
+        "1": 310
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            2,
+            5
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVAPromptRewriter"
+      },
+      "widgets_values": [
+        "城市夜晚，一只发光的机甲从摩天楼顶跳下",
+        true,
+        "pe_src/Qwen3-4B-Thinking-2507",
+        true,
+        4096,
+        0.3,
+        0.75,
+        20,
+        42,
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "type": "NAVASampler",
+      "pos": [
+        280,
+        460
+      ],
+      "size": {
+        "0": 420,
+        "1": 560
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "NAVA_MODEL",
+          "link": 1
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 2,
+          "widget": {
+            "name": "prompt"
+          }
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "spk_wav_1",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "spk_wav_2",
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "frames",
+          "type": "IMAGE",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            4
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVASampler"
+      },
+      "widgets_values": [
+        "",
+        "16:9  1280×704",
+        704,
+        1280,
+        6,
+        50,
+        3.0,
+        2.0,
+        42,
+        false,
+        true,
+        3.0,
+        2.0,
+        5.0,
+        5.0,
+        true,
+        3.0
+      ]
+    },
+    {
+      "id": 4,
+      "type": "NAVASaveVideo",
+      "pos": [
+        280,
+        1100
+      ],
+      "size": {
+        "0": 420,
+        "1": 150
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "frames",
+          "type": "IMAGE",
+          "link": 3
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video_path",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVASaveVideo"
+      },
+      "widgets_values": [
+        24,
+        "nava",
+        "",
+        18
+      ]
+    },
+    {
+      "id": 5,
+      "type": "NAVAShowText",
+      "pos": [
+        930,
+        60
+      ],
+      "size": {
+        "0": 400,
+        "1": 100
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVAShowText"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "NAVA_MODEL"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      1,
+      "STRING"
+    ],
+    [
+      3,
+      3,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      4,
+      3,
+      1,
+      4,
+      1,
+      "AUDIO"
+    ],
+    [
+      5,
+      2,
+      0,
+      5,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7,
+      "offset": [
+        0,
+        0
+      ]
+    }
+  },
+  "version": 0.4
+}

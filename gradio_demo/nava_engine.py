@@ -237,7 +237,11 @@ class NAVAEngine:
     def generate(self, prompt: str, image_path: str = None, spk_wav_paths: list = None,
                  steps: int = 50, output_dir: str = "/tmp/nava_outputs",
                  is_i2v: bool = False, height: int = None, width: int = None,
-                 frames: int = None) -> str:
+                 frames: int = None,
+                 video_cfg: float = None, audio_cfg: float = None,
+                 video_align_cfg: float = None, audio_align_cfg: float = None,
+                 align_3d_cfg: bool = None, timbre_cfg: bool = None,
+                 timbre_align_cfg: float = None) -> str:
         """
         Run single inference. All ranks must call this together in SP mode.
         Returns: output video path (only meaningful on rank 0).
@@ -283,15 +287,15 @@ class NAVAEngine:
             gen_vid_out, gen_aud_out = self.pipe.sample(
                 batch,
                 num_steps=steps,
-                audio_guidance_scale=self.cfg.get("audio_guidance_scale", 2.0),
-                video_guidance_scale=self.cfg.get("video_guidance_scale", 3.0),
-                align_3d_cfg=self.cfg.get("align_3d_cfg", True),
-                audio_align_guidance_scale=self.cfg.get("audio_align_guidance_scale", 2.0),
-                video_align_guidance_scale=self.cfg.get("video_align_guidance_scale", 3.0),
+                audio_guidance_scale=audio_cfg if audio_cfg is not None else self.cfg.get("audio_guidance_scale", 2.0),
+                video_guidance_scale=video_cfg if video_cfg is not None else self.cfg.get("video_guidance_scale", 3.0),
+                align_3d_cfg=align_3d_cfg if align_3d_cfg is not None else self.cfg.get("align_3d_cfg", True),
+                audio_align_guidance_scale=audio_align_cfg if audio_align_cfg is not None else self.cfg.get("audio_align_guidance_scale", 2.0),
+                video_align_guidance_scale=video_align_cfg if video_align_cfg is not None else self.cfg.get("video_align_guidance_scale", 3.0),
                 save_vid_latent=False,
                 is_i2v=is_i2v,
-                timbre_cfg=self.cfg.get("timbre_cfg", False),
-                timbre_align_guidance_scale=self.cfg.get("timbre_align_guidance_scale", 3.0),
+                timbre_cfg=timbre_cfg if timbre_cfg is not None else self.cfg.get("timbre_cfg", False),
+                timbre_align_guidance_scale=timbre_align_cfg if timbre_align_cfg is not None else self.cfg.get("timbre_align_guidance_scale", 3.0),
                 offload_backbone=True,
                 vae_cpu_offload=False,
                 decode=(self.rank == 0),

@@ -1,0 +1,466 @@
+{
+  "last_node_id": 8,
+  "last_link_id": 10,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        20,
+        60
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1,
+            6
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "NAVAModelLoader",
+      "pos": [
+        800,
+        60
+      ],
+      "size": {
+        "0": 400,
+        "1": 178
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "NAVA_MODEL",
+          "links": [
+            5
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVAModelLoader"
+      },
+      "widgets_values": [
+        "NAVA_fp8.safetensors",
+        "configs/nava.yaml",
+        true,
+        false,
+        10,
+        "fp8_e4m3fn"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "NAVAImageCaptioner",
+      "pos": [
+        20,
+        440
+      ],
+      "size": {
+        "0": 380,
+        "1": 220
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "caption",
+          "type": "STRING",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVAImageCaptioner"
+      },
+      "widgets_values": [
+        "pe_src/Qwen3-VL-4B-Instruct",
+        false,
+        256,
+        0.3,
+        42,
+        true
+      ]
+    },
+    {
+      "id": 4,
+      "type": "NAVAPromptCompose",
+      "pos": [
+        20,
+        720
+      ],
+      "size": {
+        "0": 380,
+        "1": 280
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "caption",
+          "type": "STRING",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVAPromptCompose"
+      },
+      "widgets_values": [
+        "single_speaker",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 5,
+      "type": "NAVAPromptRewriter",
+      "pos": [
+        20,
+        1060
+      ],
+      "size": {
+        "0": 400,
+        "1": 310
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 3,
+          "widget": {
+            "name": "prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            4,
+            10
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVAPromptRewriter"
+      },
+      "widgets_values": [
+        "",
+        true,
+        "pe_src/Qwen3-4B-Thinking-2507",
+        true,
+        4096,
+        0.3,
+        0.75,
+        20,
+        42,
+        false
+      ]
+    },
+    {
+      "id": 6,
+      "type": "NAVASampler",
+      "pos": [
+        500,
+        440
+      ],
+      "size": {
+        "0": 420,
+        "1": 560
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "NAVA_MODEL",
+          "link": 5
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 4,
+          "widget": {
+            "name": "prompt"
+          }
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 6
+        },
+        {
+          "name": "spk_wav_1",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "spk_wav_2",
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "frames",
+          "type": "IMAGE",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            8
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVASampler"
+      },
+      "widgets_values": [
+        "",
+        "16:9  1280×704",
+        704,
+        1280,
+        6,
+        50,
+        3.0,
+        2.0,
+        42,
+        false,
+        true,
+        3.0,
+        2.0,
+        5.0,
+        5.0,
+        true,
+        3.0
+      ]
+    },
+    {
+      "id": 7,
+      "type": "NAVASaveVideo",
+      "pos": [
+        500,
+        1100
+      ],
+      "size": {
+        "0": 420,
+        "1": 150
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "frames",
+          "type": "IMAGE",
+          "link": 7
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video_path",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVASaveVideo"
+      },
+      "widgets_values": [
+        24,
+        "nava",
+        "",
+        18
+      ]
+    },
+    {
+      "id": 8,
+      "type": "NAVAShowText",
+      "pos": [
+        470,
+        1060
+      ],
+      "size": {
+        "0": 400,
+        "1": 100
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NAVAShowText"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      3,
+      0,
+      4,
+      0,
+      "STRING"
+    ],
+    [
+      3,
+      4,
+      0,
+      5,
+      0,
+      "STRING"
+    ],
+    [
+      4,
+      5,
+      0,
+      6,
+      1,
+      "STRING"
+    ],
+    [
+      5,
+      2,
+      0,
+      6,
+      0,
+      "NAVA_MODEL"
+    ],
+    [
+      6,
+      1,
+      0,
+      6,
+      2,
+      "IMAGE"
+    ],
+    [
+      7,
+      6,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      8,
+      6,
+      1,
+      7,
+      1,
+      "AUDIO"
+    ],
+    [
+      10,
+      5,
+      0,
+      8,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6,
+      "offset": [
+        0,
+        0
+      ]
+    }
+  },
+  "version": 0.4
+}

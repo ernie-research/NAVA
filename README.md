@@ -473,10 +473,28 @@ The source code in this repository is released under the Apache License 2.0.
 
 Model weights, pretrained backbones, tokenizers, audio VAEs, speaker encoders, and prompt-rewriting models may be subject to different licenses from their original providers. This includes, but is not limited to, Wan2.2, LTX-Video, Qwen3, and ReDimNet. Users are responsible for complying with the corresponding licenses of all third-party components.
 
+## ComfyUI
+
+Single-GPU audio-video generation via drag-and-drop workflow. Supports T2AV, I2AV, and timbre-controlled I2AV with FP8 inference (~18 GB VRAM).
+
+**Setup** — symlink the package into ComfyUI's custom_nodes:
+
+```bash
+cd <ComfyUI-root>/custom_nodes && ln -s /path/to/NAVA/comfyui_nava .
+cd <ComfyUI-root>
+ln -s /path/to/NAVA/nava_src .   && ln -s /path/to/NAVA/configs .
+ln -s /path/to/NAVA/NAVA_FP8 .   && ln -s /path/to/NAVA/NAVA_fp8.safetensors .
+ln -s /path/to/NAVA/pe_src .     && ln -s /path/to/NAVA/Wan2.2-TI2V-5B .
+```
+
+Then restart ComfyUI and drag any JSON from `comfyui_nava/examples/` onto the canvas to load a pre-wired workflow.
+
+For full node reference and workflow walkthroughs, see [comfyui_nava/README.md](comfyui_nava/README.md).
+
 ## TODO
 
 - [x] FP8 weight-only quantization
-- [ ] ComfyUI workflow with FP8 — **planned release this week.** Audio-video inference has more complex inputs/outputs than image/video models, so the workflow needs extra polish.
+- [x] ComfyUI workflow with FP8
 
 ## Citation
 
