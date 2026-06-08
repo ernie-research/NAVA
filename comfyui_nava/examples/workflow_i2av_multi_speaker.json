@@ -1,6 +1,6 @@
 {
-  "last_node_id": 8,
-  "last_link_id": 10,
+  "last_node_id": 11,
+  "last_link_id": 13,
   "nodes": [
     {
       "id": 1,
@@ -157,9 +157,9 @@
         "Node name for S&R": "NAVAPromptCompose"
       },
       "widgets_values": [
-        "single_speaker",
+        "multi_speaker",
         "",
-        ""
+        "Character A leans in and says<S>Drop the weapon. Now.<E> Character B smirks<S>You really think this ends here?<E>"
       ]
     },
     {
@@ -192,7 +192,7 @@
           "type": "STRING",
           "links": [
             4,
-            10
+            12
           ],
           "slot_index": 0
         }
@@ -214,6 +214,38 @@
       ]
     },
     {
+      "id": 8,
+      "type": "LoadAudio",
+      "pos": [
+        1260,
+        60
+      ],
+      "size": {
+        "0": 315,
+        "1": 130
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            9
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "speaker_reference.wav"
+      ]
+    },
+    {
       "id": 6,
       "type": "NAVASampler",
       "pos": [
@@ -225,7 +257,7 @@
         "1": 560
       },
       "flags": {},
-      "order": 5,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
@@ -249,12 +281,12 @@
         {
           "name": "spk_wav_1",
           "type": "AUDIO",
-          "link": null
+          "link": 9
         },
         {
           "name": "spk_wav_2",
           "type": "AUDIO",
-          "link": null
+          "link": 13
         }
       ],
       "outputs": [
@@ -270,7 +302,7 @@
           "name": "audio",
           "type": "AUDIO",
           "links": [
-            8
+            10
           ],
           "slot_index": 1
         }
@@ -310,7 +342,7 @@
         "1": 150
       },
       "flags": {},
-      "order": 6,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
@@ -321,7 +353,7 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 8
+          "link": 10
         }
       ],
       "outputs": [
@@ -343,7 +375,7 @@
       ]
     },
     {
-      "id": 8,
+      "id": 10,
       "type": "NAVAShowText",
       "pos": [
         470,
@@ -354,13 +386,13 @@
         "1": 100
       },
       "flags": {},
-      "order": 7,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
           "name": "text",
           "type": "STRING",
-          "link": 10
+          "link": 12
         }
       ],
       "outputs": [
@@ -375,6 +407,38 @@
         "Node name for S&R": "NAVAShowText"
       },
       "widgets_values": []
+    },
+    {
+      "id": 11,
+      "type": "LoadAudio",
+      "pos": [
+        1260,
+        220
+      ],
+      "size": {
+        "0": 315,
+        "1": 130
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            13
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "speaker_reference_2.wav"
+      ]
     }
   ],
   "links": [
@@ -435,7 +499,15 @@
       "IMAGE"
     ],
     [
+      9,
       8,
+      0,
+      6,
+      3,
+      "AUDIO"
+    ],
+    [
+      10,
       6,
       1,
       7,
@@ -443,19 +515,27 @@
       "AUDIO"
     ],
     [
-      10,
+      12,
       5,
       0,
-      8,
+      10,
       0,
       "STRING"
+    ],
+    [
+      13,
+      11,
+      0,
+      6,
+      4,
+      "AUDIO"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.6,
+      "scale": 0.55,
       "offset": [
         0,
         0

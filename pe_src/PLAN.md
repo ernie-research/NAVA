@@ -37,7 +37,7 @@
 ## 文件结构
 
 ```
-/root/paddlejob/workspace/env_run/NAVA/pe_src/
+<NAVA-root>/pe_src/
 ├── gradio_server.py        # 主入口：Gradio UI + rank 0 逻辑 + worker 循环
 ├── rewrite_single.py       # [已有] prompt rewrite 模块
 ├── nava_engine.py          # 封装 NAVA pipeline 初始化 + single sample

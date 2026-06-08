@@ -15,7 +15,7 @@ def save_bias_to_txt(bias: torch.Tensor, tag: str = "bias_debug"):
       tag:  文件名后缀，用来区分不同 step/batch，比如 'step_100'
     """
     # 你可以根据需要改存放路径
-    save_dir = "/root/baidu/personal-code/sy_transfusion"
+    save_dir = os.environ.get("NAVA_DEBUG_DIR", "./debug_outputs")
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, f"bias_{tag}.txt")
 

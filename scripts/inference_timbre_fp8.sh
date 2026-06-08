@@ -38,7 +38,8 @@ VAE_STRIDE_W="${VAE_STRIDE_W:-26}"
 MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
 MASTER_PORT="${MASTER_PORT:-29510}"
 NPROC="${NPROC:-8}"
-TIMBRE_SCALE="${TIMBRE_SCALE:-1.0}"
+TIMBRE_SCALE="${TIMBRE_SCALE:-2.0}"
+VIDEO_CFG="${VIDEO_CFG:-2.0}"
 
 if [ ! -f "$CKPT" ]; then
     echo "[ERROR] FP8 checkpoint not found: $CKPT" >&2
@@ -59,6 +60,9 @@ echo "[INFO] Out dir:     $OUT_DIR"
 echo "[INFO] Mode:        FP8 weight-only + T5 offload + VAE tiling + timbre"
 echo "[INFO] VAE tile:    ${VAE_TILE_H}x${VAE_TILE_W}  stride ${VAE_STRIDE_H}x${VAE_STRIDE_W}"
 echo "[INFO] Timbre cfg scale: $TIMBRE_SCALE"
+echo "[INFO] Video cfg scale:  $VIDEO_CFG"
+
+source "$SCRIPT_DIR/_cfg_args.sh"
 
 SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --nnodes=1 \
@@ -86,4 +90,5 @@ SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --vae_tile_size "$VAE_TILE_H" "$VAE_TILE_W" \
     --vae_tile_stride "$VAE_STRIDE_H" "$VAE_STRIDE_W" \
     --timbre_cfg \
-    --timbre_align_guidance_scale "$TIMBRE_SCALE"
+    --timbre_align_guidance_scale "$TIMBRE_SCALE" \
+    $CFG_EXTRA_ARGS

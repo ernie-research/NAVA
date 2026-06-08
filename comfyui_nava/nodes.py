@@ -187,10 +187,10 @@ class NAVAPromptRewriter:
                 ),
                 "use_4bit": (
                     "BOOLEAN",
-                    {"default": True,
-                     "tooltip": "Load the rewriter in 4-bit (bitsandbytes nf4). Default ON for "
-                                "speed and to leave VRAM for NAVA. Turn off for marginally better "
-                                "quality at ~2x the memory."},
+                    {"default": False,
+                     "tooltip": "Load the rewriter in 4-bit (bitsandbytes nf4). Default OFF — "
+                                "bf16 + flash_attention_2 is faster on H800-class GPUs. "
+                                "Turn on to save VRAM at the cost of speed."},
                 ),
                 "max_new_tokens": (
                     "INT",
@@ -231,7 +231,7 @@ class NAVAPromptRewriter:
         prompt: str,
         enabled: bool = True,
         model_path: str = "pe_src/Qwen3-4B-Thinking-2507",
-        use_4bit: bool = True,
+        use_4bit: bool = False,
         max_new_tokens: int = 4096,
         temperature: float = 0.3,
         top_p: float = 0.75,
@@ -241,6 +241,13 @@ class NAVAPromptRewriter:
     ):
         if not enabled or not prompt or not prompt.strip():
             return {"ui": {"text": [prompt or ""]}, "result": (prompt,)}
+
+        from .engine import _MODEL_CACHE as _NAVA_CACHE
+        for _eng in _NAVA_CACHE.values():
+            try:
+                _eng.offload_to_cpu()
+            except Exception as _e:
+                print(f"[NAVA-Rewriter] WARN: failed to offload main engine: {_e}")
 
         from .rewriter import rewrite as _do_rewrite
         rewritten = _do_rewrite(
@@ -258,6 +265,12 @@ class NAVAPromptRewriter:
 
         from .rewriter import offload_all_to_cpu as _offload_rewriter
         _offload_rewriter()
+
+        for _eng in _NAVA_CACHE.values():
+            try:
+                _eng.reload_to_gpu()
+            except Exception as _e:
+                print(f"[NAVA-Rewriter] WARN: failed to reload main engine: {_e}")
 
         return {"ui": {"text": [rewritten]}, "result": (rewritten,)}
 

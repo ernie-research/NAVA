@@ -204,7 +204,7 @@
         "",
         true,
         "pe_src/Qwen3-4B-Thinking-2507",
-        true,
+        false,
         4096,
         0.3,
         0.75,

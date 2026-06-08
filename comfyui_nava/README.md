@@ -3,20 +3,31 @@
 ## Installation
 
 ```bash
-# Symlink into ComfyUI custom_nodes
-cd <ComfyUI-root>/custom_nodes
-ln -s /root/paddlejob/workspace/env_run/NAVA/comfyui_nava .
+# Set NAVA_ROOT to your NAVA checkout, then symlink into ComfyUI.
+export NAVA_ROOT=/path/to/NAVA
+export COMFY_ROOT=/path/to/ComfyUI
 
-# Symlink model assets into ComfyUI root
-cd <ComfyUI-root>
-ln -s /root/paddlejob/workspace/env_run/NAVA/nava_src .
-ln -s /root/paddlejob/workspace/env_run/NAVA/hf_space_nava/configs .
-ln -s /root/paddlejob/workspace/env_run/NAVA/NAVA_FP8 .
-ln -s /root/paddlejob/workspace/env_run/NAVA/NAVA_fp8.safetensors .
-ln -s /root/paddlejob/workspace/env_run/NAVA/pe_src .
-ln -s /root/paddlejob/workspace/env_run/NAVA/huggingface_upload/Wan2.2-TI2V-5B .
+# Symlink the custom nodes
+ln -s "$NAVA_ROOT/comfyui_nava" "$COMFY_ROOT/custom_nodes/"
+
+# Symlink model assets into ComfyUI root so the nodes' relative paths resolve
+cd "$COMFY_ROOT"
+ln -s "$NAVA_ROOT/nava_src" .
+ln -s "$NAVA_ROOT/configs" .
+ln -s "$NAVA_ROOT/NAVA_FP8" .
+ln -s "$NAVA_ROOT/NAVA_fp8.safetensors" .
+ln -s "$NAVA_ROOT/pe_src" .
+ln -s "$NAVA_ROOT/Wan2.2-TI2V-5B" .
 
 # Restart ComfyUI
+```
+
+Alternatively, launch ComfyUI from the NAVA root so all relative paths resolve
+without symlinks:
+```bash
+cd "$NAVA_ROOT"
+ln -s "$NAVA_ROOT/comfyui_nava" "$COMFY_ROOT/custom_nodes/"
+python "$COMFY_ROOT/main.py"
 ```
 
 ---
@@ -125,13 +136,11 @@ LoadImage ───────────────────────�
 ```
 Steps: swap LoadImage for your image, fill **speech** in PromptCompose (or set mode to `silent`), Queue.
 
-### workflow_i2av_speaker.json — Image to audio-video with timbre control
-Same as above plus a LoadAudio node connected to `spk_wav_1`.
+### workflow_i2av_single_speaker.json — Image to audio-video, single-speaker timbre control
+Same as `workflow_i2av.json` plus one LoadAudio node connected to `spk_wav_1`. PromptCompose mode is `single_speaker`; write the role's line with `<S>...<E>` in the **speech** box.
 
-**Two speakers:**
-1. Add a second LoadAudio node → connect to `spk_wav_2`
-2. Set PromptCompose mode to `multi_speaker`
-3. Write both lines with `<S>...<E>` in the **dialogue** box
+### workflow_i2av_multi_speaker.json — Image to audio-video, two-speaker timbre control
+Two LoadAudio nodes wired to `spk_wav_1` and `spk_wav_2`. PromptCompose mode is `multi_speaker`; write both speakers' lines with `<S>...<E>` in the **dialogue** box.
 
 ---
 

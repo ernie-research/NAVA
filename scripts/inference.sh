@@ -40,6 +40,8 @@ echo "[INFO] Ckpt:    $CKPT"
 echo "[INFO] Data:    $DATA_FILE"
 echo "[INFO] Out dir: $OUT_DIR"
 
+source "$SCRIPT_DIR/_cfg_args.sh"
+
 SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --nnodes=1 \
     --nproc_per_node="$NPROC" \
@@ -59,4 +61,5 @@ SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --steps 50 \
     --save_sample \
     --gen_turn 1 \
-    --use_sp
+    --use_sp \
+    $CFG_EXTRA_ARGS

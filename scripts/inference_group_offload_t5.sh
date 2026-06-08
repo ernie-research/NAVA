@@ -62,6 +62,8 @@ echo "[INFO] Offload group size: $OFFLOAD_GROUP_SIZE"
 echo "[INFO] VAE tile size:      ${VAE_TILE_SIZE_H}x${VAE_TILE_SIZE_W}"
 echo "[INFO] VAE tile stride:    ${VAE_TILE_STRIDE_H}x${VAE_TILE_STRIDE_W}"
 
+source "$SCRIPT_DIR/_cfg_args.sh"
+
 SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --nnodes=1 \
     --nproc_per_node="$NPROC" \
@@ -87,4 +89,5 @@ SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --offload_group_size "$OFFLOAD_GROUP_SIZE" \
     --vae_tiling \
     --vae_tile_size "$VAE_TILE_SIZE_H" "$VAE_TILE_SIZE_W" \
-    --vae_tile_stride "$VAE_TILE_STRIDE_H" "$VAE_TILE_STRIDE_W"
+    --vae_tile_stride "$VAE_TILE_STRIDE_H" "$VAE_TILE_STRIDE_W" \
+    $CFG_EXTRA_ARGS

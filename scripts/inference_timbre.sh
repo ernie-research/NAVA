@@ -22,7 +22,8 @@ DATA_FILE="${DATA_FILE:-infer_cases/timbre/prompts.jsonl}"
 MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
 MASTER_PORT="${MASTER_PORT:-29508}"
 NPROC="${NPROC:-8}"
-TIMBRE_SCALE="${TIMBRE_SCALE:-1.0}"
+TIMBRE_SCALE="${TIMBRE_SCALE:-2.0}"
+VIDEO_CFG="${VIDEO_CFG:-2.0}"
 
 if [ ! -f "$DATA_FILE" ]; then
     echo "[ERROR] DATA_FILE not found: $DATA_FILE" >&2
@@ -36,6 +37,9 @@ echo "[INFO] Ckpt:     $CKPT"
 echo "[INFO] Data:     $DATA_FILE"
 echo "[INFO] Out dir:  $OUT_DIR"
 echo "[INFO] Timbre cfg scale: $TIMBRE_SCALE"
+echo "[INFO] Video cfg scale:  $VIDEO_CFG"
+
+source "$SCRIPT_DIR/_cfg_args.sh"
 
 SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --nnodes=1 \
@@ -58,4 +62,5 @@ SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --gen_turn 1 \
     --use_sp \
     --timbre_cfg \
-    --timbre_align_guidance_scale "$TIMBRE_SCALE"
+    --timbre_align_guidance_scale "$TIMBRE_SCALE" \
+    $CFG_EXTRA_ARGS

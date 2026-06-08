@@ -37,6 +37,8 @@ echo "[INFO] Data:    $DATA_FILE"
 echo "[INFO] Out dir: $OUT_DIR"
 echo "[INFO] Mode:    T5 CPU offload"
 
+source "$SCRIPT_DIR/_cfg_args.sh"
+
 SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --nnodes=1 \
     --nproc_per_node="$NPROC" \
@@ -57,4 +59,5 @@ SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --save_sample \
     --gen_turn 1 \
     --use_sp \
-    --t5_offload
+    --t5_offload \
+    $CFG_EXTRA_ARGS

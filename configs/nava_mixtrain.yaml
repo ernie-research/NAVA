@@ -3,7 +3,7 @@ model_type: NAVA
 modality: audio_video # [audio, video, image, audio_video]
 
 # 模型
-model_id: /root/paddlejob/workspace/Qwen3-1.7B
+model_id: ""
 # model_id: GPT-B
 use_bf16: true
 audio_latent_ch: 128
@@ -107,7 +107,6 @@ warmup_steps: 0
 max_steps: 1000000
 save_every: 2500
 out_dir: outputs/t2av_baseline_demo_mmdit_test_no_separate_modulation
-seed: 42
 
 flow: true
 

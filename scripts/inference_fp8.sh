@@ -60,6 +60,8 @@ echo "[INFO] Out dir:     $OUT_DIR"
 echo "[INFO] Mode:        FP8 weight-only + T5 offload + VAE tiling"
 echo "[INFO] VAE tile:    ${VAE_TILE_H}x${VAE_TILE_W}  stride ${VAE_STRIDE_H}x${VAE_STRIDE_W}"
 
+source "$SCRIPT_DIR/_cfg_args.sh"
+
 SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --nnodes=1 \
     --nproc_per_node="$NPROC" \
@@ -84,4 +86,5 @@ SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --t5_offload \
     --vae_tiling \
     --vae_tile_size "$VAE_TILE_H" "$VAE_TILE_W" \
-    --vae_tile_stride "$VAE_STRIDE_H" "$VAE_STRIDE_W"
+    --vae_tile_stride "$VAE_STRIDE_H" "$VAE_STRIDE_W" \
+    $CFG_EXTRA_ARGS

@@ -457,8 +457,16 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
             outputs=[video_output],
         )
 
-    demo.queue(max_size=1)
-    demo.launch(server_name="0.0.0.0", server_port=args.port, share=args.share)
+    # Single-GPU NAVA inference; one job at a time but allow a deeper queue so
+    # multiple users can submit without WebSocket drops or 'queue full' errors
+    # during long (10-20 min) inference runs.
+    demo.queue(max_size=32, default_concurrency_limit=1)
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=args.port,
+        share=args.share,
+        max_threads=40,
+    )
 
 
 # ============================================================
@@ -543,8 +551,13 @@ def main():
                 outputs=[video_output],
             )
 
-        demo.queue(max_size=1)
-        demo.launch(server_name="0.0.0.0", server_port=args.port, share=args.share)
+        demo.queue(max_size=32, default_concurrency_limit=1)
+        demo.launch(
+            server_name="0.0.0.0",
+            server_port=args.port,
+            share=args.share,
+            max_threads=40,
+        )
         return
 
     # ---- Normal mode: full model loading + distributed ----

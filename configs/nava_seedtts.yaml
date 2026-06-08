@@ -7,7 +7,7 @@ model_type: NAVA
 modality: audio  # [audio, video, image, audio_video]
 
 # 模型
-model_id: /root/paddlejob/workspace/Qwen3-1.7B
+model_id: ""
 use_bf16: true
 audio_latent_ch: 128
 video_latent_ch: 48
@@ -61,6 +61,5 @@ model:
   ckpt_dir: ./
   audio_vae_ckpt_dir: ./huggingface_upload/params
 
-seed: 42
 flow: true
 amp_dtype: bf16

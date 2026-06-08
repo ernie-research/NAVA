@@ -72,7 +72,7 @@
         "城市夜晚，一只发光的机甲从摩天楼顶跳下",
         true,
         "pe_src/Qwen3-4B-Thinking-2507",
-        true,
+        false,
         4096,
         0.3,
         0.75,

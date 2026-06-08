@@ -267,6 +267,29 @@ class NAVAComfyEngine:
         )
 
     # ------------------------------------------------------------------
+    # Whole-engine offload (used while other models — e.g. rewriter — run)
+    # ------------------------------------------------------------------
+
+    def offload_to_cpu(self) -> None:
+        """Move pipeline weights to CPU and free VRAM. Idempotent."""
+        if getattr(self, "_on_cpu", False):
+            return
+        self.pipe.to("cpu")
+        torch.cuda.empty_cache()
+        self._on_cpu = True
+        print("[NAVA] Engine offloaded to CPU")
+
+    def reload_to_gpu(self) -> None:
+        """Move pipeline weights back to the engine's original device. Idempotent."""
+        if not getattr(self, "_on_cpu", False):
+            return
+        self.pipe.to(self.device)
+        if self.t5_offload:
+            self.pipe.text_model.model.to("cpu")
+        self._on_cpu = False
+        print(f"[NAVA] Engine reloaded to {self.device}")
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
@@ -380,6 +403,13 @@ class NAVAComfyEngine:
         from nava_src.utils.common import set_seed
         set_seed(seed)
 
+        # Long-run hygiene: clear any retained state from prior generates so
+        # repeated queue runs don't drift on VRAM, RNG, or peak-stat counters.
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+        _vram_before = torch.cuda.memory_allocated() / 1e9
+        print(f"[NAVA] generate() start: VRAM allocated={_vram_before:.2f} GB, seed={seed}")
+
         sample = self._build_batch(
             prompt, image_path, spk_wav_paths, is_i2v,
             height, width, latent_frames,
@@ -441,6 +471,10 @@ class NAVAComfyEngine:
         waveform = waveform.unsqueeze(0).cpu().float()  # [1, C, L]
         audio_out = {"waveform": waveform, "sample_rate": raw_aud["sample_rate"]}
 
+        _peak = torch.cuda.max_memory_allocated() / 1e9
+        _now = torch.cuda.memory_allocated() / 1e9
+        print(f"[NAVA] generate() done:  VRAM peak={_peak:.2f} GB, now={_now:.2f} GB")
+
         return frames_f32, audio_out
 
 
@@ -468,6 +502,23 @@ def get_or_load_engine(
         weight_dtype,
     )
     if key not in _MODEL_CACHE:
+        # LRU(1): evict any older engines first so we don't accumulate VRAM/RAM
+        # when the user toggles ModelLoader knobs (t5_offload, group_offload,
+        # weight_dtype) across runs. Without this every parameter change leaks
+        # a full 24 GB engine + pinned host buffers.
+        if _MODEL_CACHE:
+            for old_key in list(_MODEL_CACHE.keys()):
+                old = _MODEL_CACHE.pop(old_key)
+                try:
+                    old.pipe.to("cpu")
+                except Exception:
+                    pass
+                del old
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
+            print("[NAVA] Evicted previous engine from cache (LRU=1)")
+
         _MODEL_CACHE[key] = NAVAComfyEngine(
             config_path=config_path,
             ckpt_path=ckpt_path,

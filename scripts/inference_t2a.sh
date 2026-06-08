@@ -43,6 +43,8 @@ echo "[INFO] Duration:     ${DURATION}s"
 echo "[INFO] Timbre scale: $TIMBRE_SCALE"
 echo "[INFO] Num GPUs:     $NPROC"
 
+source "$SCRIPT_DIR/_cfg_args.sh"
+
 SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --nnodes=1 \
     --nproc_per_node="$NPROC" \
@@ -61,4 +63,5 @@ SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --gen_turn 1 \
     --timbre_cfg \
     --timbre_align_guidance_scale "$TIMBRE_SCALE" \
-    --use_sp
+    --use_sp \
+    $CFG_EXTRA_ARGS

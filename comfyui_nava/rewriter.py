@@ -71,6 +71,12 @@ def _load(model_path: str, use_4bit: bool):
         )
     else:
         load_kwargs["torch_dtype"] = torch.bfloat16
+        try:
+            import flash_attn  # noqa: F401
+            load_kwargs["attn_implementation"] = "flash_attention_2"
+            print("[NAVA-Rewriter] Using flash_attention_2")
+        except ImportError:
+            print("[NAVA-Rewriter] flash_attn not available, falling back to default attn")
     model = AutoModelForCausalLM.from_pretrained(model_path, **load_kwargs)
     print(f"[NAVA-Rewriter] Loaded in {time.time() - t0:.1f}s")
     return model, tokenizer
@@ -81,7 +87,20 @@ def get_or_load(model_path: str, use_4bit: bool):
     key = (os.path.abspath(resolved) if os.path.exists(resolved) else resolved, bool(use_4bit))
     if key not in _REWRITER_CACHE:
         _REWRITER_CACHE[key] = _load(resolved, use_4bit)
-    return _REWRITER_CACHE[key]
+    model, tokenizer = _REWRITER_CACHE[key]
+    # Cached model may have been pushed to CPU by offload_all_to_cpu(); move it
+    # back. FA2 has no CPU kernel, so running on CPU would crash. 4-bit models
+    # were evicted from cache by offload_all_to_cpu so they always go through
+    # the _load branch above and arrive on cuda already.
+    _, is_4bit = key
+    if not is_4bit and torch.cuda.is_available():
+        try:
+            cur = next(model.parameters()).device
+            if cur.type != "cuda":
+                model.to("cuda:0")
+        except StopIteration:
+            pass
+    return model, tokenizer
 
 
 @torch.no_grad()

@@ -54,10 +54,10 @@ echo " Port:          $PORT"
 echo "============================================"
 
 # Add project paths
-export PYTHONPATH="/root/paddlejob/workspace/env_run/NAVA:${SCRIPT_DIR}:${PYTHONPATH}"
+ export PYTHONPATH="./:${SCRIPT_DIR}:${PYTHONPATH}"
 
 # Run from NAVA root so relative paths (e.g. ./Wan2.2-TI2V-5B/) resolve correctly
-cd /root/paddlejob/workspace/env_run/NAVA
+cd "$SCRIPT_DIR/.."
 
 SETUPTOOLS_USE_DISTUTILS=stdlib torchrun \
     --nproc_per_node=$NPROC \

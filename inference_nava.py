@@ -323,9 +323,24 @@ def main():
     parser.add_argument("--fps", type=int, default=8)
     parser.add_argument("--duration", type=float, default=5.0)
     parser.add_argument("--seedtts_mode", action="store_true", help="是否为 SeedTTS benchmark 模式")
+    parser.add_argument("--seed", type=int, default=100,
+                        help="随机种子，覆盖 yaml 里的 seed 字段。默认 100。"
+                             "use_sp 模式下所有 rank 共用同一 seed；非 SP 模式自动 +rank。")
     parser.add_argument("--gen_turn", type=int, default=2)
     parser.add_argument("--save_vid_latent", action="store_true", help="是否保存视频的latent")
     parser.add_argument("--is_i2v", action="store_true", help="是否开启i2v模式")
+    parser.add_argument("--video_guidance_scale", type=float, default=None,
+                        help="视频 CFG scale。设了就覆盖 yaml 里的 video_guidance_scale。"
+                             "I2V 推荐 2.0，T2V 推荐 5.0。")
+    parser.add_argument("--audio_guidance_scale", type=float, default=None,
+                        help="音频 CFG scale。设了就覆盖 yaml 里的 audio_guidance_scale。")
+    parser.add_argument("--align_3d_cfg", choices=["auto", "on", "off"], default="auto",
+                        help="3D-aligned CFG 开关。auto = 用 yaml 里的 align_3d_cfg，"
+                             "on/off 强制覆盖。")
+    parser.add_argument("--video_align_guidance_scale", type=float, default=None,
+                        help="视频 align-CFG scale（align_3d_cfg=on 时生效）。")
+    parser.add_argument("--audio_align_guidance_scale", type=float, default=None,
+                        help="音频 align-CFG scale（align_3d_cfg=on 时生效）。")
     parser.add_argument("--timbre_cfg", action="store_true", help="是否开启音色 CFG 控制（需 spk_embs 非空）")
     parser.add_argument("--timbre_align_guidance_scale", type=float, default=1.0, help="音色 CFG 引导强度")
     parser.add_argument("--use_sp", action="store_true",
@@ -385,7 +400,7 @@ def main():
     cfg = yaml.safe_load(open(args.config, "r"))
     modality = cfg.get("modality", "audio")
     # In SP mode every rank must share the same noise / sampler state.
-    set_seed(cfg.get("seed", 42) + (0 if args.use_sp else rank))
+    set_seed(args.seed + (0 if args.use_sp else rank))
 
     # if args.save_sample:
     #     if is_main(local_rank):
@@ -400,7 +415,7 @@ def main():
     if "video" in modality and "audio" in modality:
         cfg["init_from_meta"] = True
     pipe = PipelineClass.create(
-        model_id=cfg["model_id"],
+        model_id=cfg.get("model_id", ""),
         use_bf16=cfg["use_bf16"],
         audio_latent_ch=cfg["audio_latent_ch"],
         video_latent_ch=cfg["video_latent_ch"],
@@ -645,14 +660,24 @@ def main():
                     sample_is_i2v = sample_is_i2v[0] if sample_is_i2v else is_i2v
 
                 with amp_ctx:
+                    _align_3d = (cfg.get("align_3d_cfg", False) if args.align_3d_cfg == "auto"
+                                 else (args.align_3d_cfg == "on"))
                     gen_vid_out, gen_aud_out = pipe.sample(
                         batch,
                         num_steps=args.steps,
-                        audio_guidance_scale=cfg.get("audio_guidance_scale", 4.0),
-                        video_guidance_scale=cfg.get("video_guidance_scale", 5.0),
-                        align_3d_cfg=cfg.get("align_3d_cfg", False),
-                        audio_align_guidance_scale=cfg.get("audio_align_guidance_scale", 4.0),
-                        video_align_guidance_scale=cfg.get("video_align_guidance_scale", 5.0),
+                        audio_guidance_scale=(args.audio_guidance_scale
+                                              if args.audio_guidance_scale is not None
+                                              else cfg.get("audio_guidance_scale", 4.0)),
+                        video_guidance_scale=(args.video_guidance_scale
+                                              if args.video_guidance_scale is not None
+                                              else cfg.get("video_guidance_scale", 5.0)),
+                        align_3d_cfg=_align_3d,
+                        audio_align_guidance_scale=(args.audio_align_guidance_scale
+                                                    if args.audio_align_guidance_scale is not None
+                                                    else cfg.get("audio_align_guidance_scale", 4.0)),
+                        video_align_guidance_scale=(args.video_align_guidance_scale
+                                                    if args.video_align_guidance_scale is not None
+                                                    else cfg.get("video_align_guidance_scale", 5.0)),
                         save_vid_latent=save_vid_latent,
                         is_i2v=sample_is_i2v,
                         timbre_cfg=args.timbre_cfg or cfg.get("timbre_cfg", False),
