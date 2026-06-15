@@ -438,4 +438,5 @@ class T2AVDataset(Dataset):
             "captions": text,
             "spk_embs": sample_spk_embs,
             "is_i2v": img_latents is not None,
+            "image_path": self.first_frames[idx],
         }

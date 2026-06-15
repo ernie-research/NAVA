@@ -114,6 +114,18 @@ class PromptRewriter:
         from rewrite_single import SYSTEM_PROMPT
         self.system_prompt = SYSTEM_PROMPT
 
+        # Reach into pe_src for the same output cleaner used by the vLLM batch
+        # path and inference_nava — handles 4 leak cases (with/without <think>
+        # markers, in-band thinking dumps, post-rewrite meta drift). gradio_demo
+        # is a sibling of pe_src/ in the repo layout.
+        import sys
+        from pathlib import Path
+        _PE_SRC = str(Path(__file__).resolve().parent.parent / "pe_src")
+        if _PE_SRC not in sys.path:
+            sys.path.insert(0, _PE_SRC)
+        from rewrite import extract_rewrite as _extract_rewrite
+        self._extract_rewrite = _extract_rewrite
+
     def offload(self):
         """Move rewriter model to CPU to free GPU memory for inference."""
         if self._on_gpu:
@@ -164,14 +176,8 @@ class PromptRewriter:
             )
 
         new_tokens = outputs[0][inputs["input_ids"].shape[1]:]
-        result = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
-
-        # Keep only content after the LAST </think> (discard all thinking blocks)
-        if "</think>" in result:
-            result = result.rsplit("</think>", 1)[-1].strip()
-        # Strip any residual unclosed <think> block at the end
-        if "<think>" in result:
-            result = result.split("<think>", 1)[0].strip()
+        raw = self.tokenizer.decode(new_tokens, skip_special_tokens=True)
+        result = self._extract_rewrite(raw)
 
         elapsed = time.time() - t0
         print(f"[Rewriter] Done in {elapsed:.1f}s ({len(new_tokens)} tokens)")

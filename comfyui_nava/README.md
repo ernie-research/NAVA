@@ -86,7 +86,9 @@ The role description before each `<S>...<E>` (position, expression, action) help
 ---
 
 ### NAVA Prompt Rewriter
-Expands a short prompt into the long Chinese style NAVA was trained on using Qwen3-4B-Thinking. Strongly recommended, especially for English or short inputs. The model is unloaded after each run to free VRAM.
+Expands a short prompt into the long Chinese style NAVA was trained on using Qwen3-4B-Thinking-2507 (default). Strongly recommended, especially for English or short inputs. The model is unloaded after each run to free VRAM.
+
+> **Speed tip:** the default `Qwen3-4B-Thinking-2507` runs a `<think>...</think>` block before the rewrite, which spends ~1000–2000 extra tokens per call. If you care more about latency than quality, point `model_path` to `pe_src/Qwen3-4B-Instruct-2507` (no thinking, ~2–3× faster, slightly lower long-prompt quality). The Captioner / Sampler / RNG plumbing is unchanged.
 
 ---
 

@@ -25,9 +25,11 @@ Requirements
 ------------
 All NAVA dependencies must be installed in the same Python environment as
 ComfyUI (torch, torchaudio, torchvision, safetensors, yaml, Pillow, scipy,
-flash-attn).  Run:
-    pip install -r <path-to-NAVA>/requirements.txt
-inside the ComfyUI venv before launching.
+flash-attn).  From the NAVA repo root, inside the ComfyUI venv, run:
+    pip install torch torchvision torchaudio  # match your CUDA
+    pip install -e .
+    pip install flash-attn --no-build-isolation
+before launching ComfyUI.
 
 Notes
 -----

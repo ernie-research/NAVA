@@ -1,0 +1,3 @@
+{"prompt": "男人愤怒的说<S>You really want to push me? Fine. Then don’t expect me to hold back.<E>", "image_path": "infer_cases/timbre/wolverine.png", "spk_wavs": ["infer_cases/timbre/wolverine.wav"]}
+{"prompt": "男人冷静的说<S>We have to move fast and take them all down before they know what hit them.<E> 镜头往后拉", "image_path": "infer_cases/timbre/peter.png", "spk_wavs": ["infer_cases/timbre/peter.wav"]}
+{"prompt": "一个女人正对着镜头跳舞 左右摆动肢体 没有太大幅度的动作 背景是欢快音乐 镜头往后拉", "image_path": "infer_cases/general/dance.png"}

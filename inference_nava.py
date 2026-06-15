@@ -23,30 +23,61 @@ import json
 from nava_src.utils.common import set_seed
 from nava_src.models.nava.utils.model_loading_utils import init_fusion_score_model_ovi, init_text_model, init_wan_vae_2_2, load_fusion_checkpoint
 
+# Reuse pe_src as the single source of truth for rewrite system prompt + output
+# cleanup. Mirrors gradio_server.py / comfyui_nava / vLLM batch path.
+_PE_SRC = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pe_src")
+if _PE_SRC not in sys.path:
+    sys.path.insert(0, _PE_SRC)
+from rewrite_single import SYSTEM_PROMPT as REWRITE_SYSTEM_PROMPT
+from rewrite import extract_rewrite as _extract_rewrite
+
+import re as _re
+
+# Count completed <S>...<E> pairs in a rewriter output. Mirrors gradio_demo
+# gradio_server.py:_count_speech_tags. Used to retry rewrites whose pair count
+# drifts from the user's input — Qwen3-Thinking sometimes drops or duplicates
+# tags despite the SYSTEM_PROMPT spelling out "preserve speech verbatim".
+_SE_PAIR_RE = _re.compile(r"<S>.*?<E>", _re.DOTALL)
+
+
+def _count_se_pairs(text: str) -> int:
+    return len(_SE_PAIR_RE.findall(text or ""))
+
+
+# ---------------------------------------------------------------
+# Broadcast helpers (gradio_server.py 同款 NCCL uint8 string broadcast)
+# Used so rank0 改写后所有 rank 拿到同一段 caption — SP 模式下 T5 latent
+# 才能跨 rank 一致，否则 sequence-parallel all-gather 会拼出脏数据。
+# ---------------------------------------------------------------
+def _broadcast_string(s: str, src: int = 0) -> str:
+    if dist.get_rank() == src:
+        data = s.encode("utf-8")
+        length = torch.tensor([len(data)], dtype=torch.long, device="cuda")
+    else:
+        data = b""
+        length = torch.tensor([0], dtype=torch.long, device="cuda")
+    dist.broadcast(length, src=src)
+    n = int(length.item())
+    if dist.get_rank() == src:
+        tensor = torch.tensor(list(data), dtype=torch.uint8, device="cuda")
+    else:
+        tensor = torch.empty(n, dtype=torch.uint8, device="cuda")
+    dist.broadcast(tensor, src=src)
+    if dist.get_rank() != src:
+        s = bytes(tensor.cpu().tolist()).decode("utf-8")
+    return s
+
 
 # -----------------------------
 # Prompt Rewriter (onload/offload)
 # -----------------------------
 class PromptRewriter:
-    """Rewriter that loads to GPU on demand and offloads after use."""
+    """Rewriter that loads to GPU on demand and offloads after use.
 
-    SYSTEM_PROMPT = """你是一个中文音视频生成 prompt rewriter。你的任务是把用户输入的简短描述、关键词或普通 prompt，改写成一个适合音视频生成模型使用的高质量中文长 prompt。最终只输出改写后的 prompt，不要解释，不要分析，不要输出标题，不要输出 JSON，不要换行，必须是单段中文文本。
-
-你必须保留用户输入中的核心意图，包括主体、动作、速度、情绪、场景、台词和镜头要求。不能把用户指定的动作改成相反含义，不能删除关键主体，不能新增与用户意图冲突的剧情。用户没有明确说明的信息，可以根据画面和常识合理补全，例如背景、光线、镜头、动作细节、环境反馈和音效。
-
-改写后的 prompt 必须具有电影化、具体、连续、可执行的风格。整体结构按以下顺序自然组织：第一，描述视频风格、核心氛围和主体所在场景；第二，描述主体的外观、服装、材质、表情、姿态、位置和整体气质；第三，描述背景环境、远景元素、光线、色调和整体氛围；第四，描述动作过程，必须使用清晰的时间线，包含"视频开始时……随后……随着动作持续……视频结束时……"这类表达；第五，描述镜头语言，包括景别、机位、角度、镜头运动、稳定性、是否切镜，以及镜头重点捕捉的细节；第六，描述对白或无对白；第七，描述音频设计，包括主体动作声、环境声、细节声、空间混响和整体听感。
-
-开头优先使用类似句式："这是一段充满【风格/情绪】与【核心氛围】的视频，画面中【主体】正位于【场景】中……"。如果是写实人物或日常场景，可以使用"这段写实电影风格的视频记录了一个……场景……"。如果是动漫人物，可以使用"画面呈现高质量动漫电影质感……"。如果是运动场景，可以突出阳光、速度感、运动张力和真实临场感。如果是机甲、巨龙、怪兽、赛博人物等场景，可以突出史诗感、压迫感、力量感、未来感或毁灭感。
-
-只要用户提供了台词，必须保留台词内容，不能做任何翻译，必须保留英文原文，必须用 <S> 和 <E> 包裹每句台词，用户给的所有连贯的speech只需要一对<S><E>，不允许在其中插入新的。有多个说话人时，要说明谁先说、谁回应、各自的位置、音色、情绪和声场；如果某个角色不说话，也要明确"全程不说话"。对话类音频要强调清晰近场人声、口型同步、环境底噪、声场定位和混音干净。
-
-如果用户没有明确提供台词，必须写："画面中没有人物对白，也没有任何旁白。" 然后进入纯音效设计。音频设计必须具体，不能只写"有声音"或"有环境音"。纯音效场景要写清楚主体动作声、接触摩擦声、环境声、细节声和空间回响。例如海浪翻卷声、冲浪板切水声、风切声、水花拍打声、发动机轰鸣声、轮胎摩擦声、液压装置声、金属关节摩擦声、火焰喷射声、冰晶碰撞声、低频咆哮声、脚步声、衣料摩擦声、室内混响等。默认不要加入明显背景音乐，除非用户明确要求。结尾必须用类似句式总结："整体听感【听感关键词】，突出【核心体验】。" 或 "整体氛围【氛围关键词】，营造出【目标效果】。"
-
-动作描写必须是视频过程，而不是静态描述。要写清楚主体从什么状态开始，接着如何运动，动作速度如何，动作对环境产生什么影响，最后停留在什么状态。例如，快速动作要体现"迅速、猛烈、强烈、连续、背景快速后掠、浪花炸开、灰尘扬起、装甲联动加快"等细节；慢速动作要体现"缓慢、平稳、克制、柔和、细微调整、节奏舒展、环境变化轻柔"等细节。动作和环境反馈要匹配，例如冲浪要有水花和浪声，机甲要有金属关节和脚步震动，巨龙喷火要有火焰、热浪和火星，吐冰要有冰雾、冰晶和寒风，人物说话要有口型同步和近场人声。
-
-镜头语言要具体。默认使用稳定镜头，不要频繁切镜。根据动作选择合理镜头：高速运动使用低角度侧前方跟拍或稳定跟随；慢速运动使用平稳跟拍并保持固定距离；正面凝视使用中景到中近景、轻微仰视或平视、稳定凝视和轻微推进；喷火、吐冰、大吼使用正面中近景、低角度、锁定嘴部和面部；双人对话使用固定中近景，两人同时入画；日常说话使用近景或中近景，强调口型同步和表情。镜头段落中要使用类似句式："镜头采用稳定的【景别/角度】构图……全程……不切镜、不摇移……细腻捕捉……突出……"。
-
-输出要求：只输出最终改写后的 prompt；必须保留原始speech部分不能忽略 !；必须是中文；必须保留原始speech部分不能忽略；必须是单段；不要换行；不要列表；不要解释；不要加标题；不要输出 JSON；不要使用 markdown；不要出现"根据用户输入""改写如下"等说明性文字。"""
+    Behavior aligned with pe_src/gradio_server.py + comfyui_nava: SYSTEM_PROMPT
+    from rewrite_single, output cleanup via rewrite.extract_rewrite (handles
+    Qwen3-Thinking <think>...</think> blocks plus 3 fallback leak cases).
+    """
 
     def __init__(self, model_path: str, device: str = "cuda:0"):
         print(f"[Rewriter] Loading {model_path} to CPU...")
@@ -76,33 +107,152 @@ class PromptRewriter:
             self._on_gpu = False
             print("[Rewriter] Offloaded to CPU")
 
-    def rewrite(self, text: str) -> str:
-        """Rewrite a single prompt. Handles onload/offload automatically."""
+    def rewrite(self, text: str, expected_se_pairs: int = None,
+                max_retries: int = 5) -> str:
+        """Rewrite a single prompt. Handles onload/offload automatically.
+
+        If expected_se_pairs is given, retry up to max_retries times until the
+        rewritten output's <S>...<E> pair count matches. On persistent
+        mismatch, fall back to the last attempt with a WARN log (single bad
+        sample shouldn't crash the whole batch).
+        """
         self.onload()
         messages = [
-            {"role": "system", "content": self.SYSTEM_PROMPT},
+            {"role": "system", "content": REWRITE_SYSTEM_PROMPT},
             {"role": "user", "content": text},
         ]
         chat_text = self.tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True,
         )
         inputs = self.tokenizer(chat_text, return_tensors="pt").to(self._device)
-        print(f"[Rewriter] Generating (input tokens: {inputs['input_ids'].shape[1]})...")
+        print(f"[Rewriter] IN  ({len(text)} chars): {text}", flush=True)
+        if expected_se_pairs is not None:
+            print(f"[Rewriter] target <S><E> pairs: {expected_se_pairs}", flush=True)
+
+        last_result = ""
+        for attempt in range(max_retries):
+            print(f"[Rewriter] Generating attempt {attempt+1}/{max_retries} "
+                  f"(input tokens: {inputs['input_ids'].shape[1]})...", flush=True)
+            t0 = time.time()
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs, max_new_tokens=4096,
+                    temperature=0.3, top_p=0.75, top_k=20,
+                    do_sample=True, repetition_penalty=1.05,
+                )
+            new_tokens = outputs[0][inputs["input_ids"].shape[1]:]
+            raw = self.tokenizer.decode(new_tokens, skip_special_tokens=True)
+            result = _extract_rewrite(raw)
+            n_pairs = _count_se_pairs(result)
+            elapsed = time.time() - t0
+            print(f"[Rewriter] Done in {elapsed:.1f}s "
+                  f"({len(new_tokens)} tokens, <S><E>={n_pairs})", flush=True)
+            last_result = result
+            if expected_se_pairs is None or n_pairs == expected_se_pairs:
+                print(f"[Rewriter] OUT ({len(result)} chars): {result}", flush=True)
+                self.offload()
+                return result
+            print(f"[Rewriter] <S><E> mismatch: got {n_pairs}, want "
+                  f"{expected_se_pairs} — retrying", flush=True)
+
+        print(f"[Rewriter] WARN: <S><E> mismatch persisted after {max_retries} "
+              f"retries (last got {_count_se_pairs(last_result)}, "
+              f"want {expected_se_pairs}) — using last result", flush=True)
+        print(f"[Rewriter] OUT ({len(last_result)} chars): {last_result}", flush=True)
+        self.offload()
+        return last_result
+
+
+# -----------------------------
+# Image Captioner (onload/offload, rank0 only)
+# -----------------------------
+class ImageCaptioner:
+    """Qwen3-VL captioner. Loaded to CPU, onloaded to GPU per-call.
+
+    SYSTEM_PROMPT mirrors comfyui_nava/captioner.py verbatim — keeps the
+    image-side caption style consistent across NAVA's three frontends.
+    """
+
+    SYSTEM_PROMPT = (
+        "你是一个视频生成提示词助手。用一段流畅的中文描述图片中的场景：人物外貌、"
+        "动作、服装、背景环境、光线与色调、整体氛围。不要使用markdown格式、不要分条列举、"
+        "不要说\"这张图\"或\"这是一张图片\"，直接描述画面内容，像在描述一段正在发生的"
+        "视频场景。输出一段话，不超过150字。"
+    )
+    USER_INSTRUCTION = "请描述这张图片的视频场景。"
+
+    def __init__(self, model_path: str, device: str = "cuda:0"):
+        print(f"[Captioner] Loading {model_path} to CPU...")
+        t0 = time.time()
+        from transformers import AutoProcessor
+        try:
+            from transformers import AutoModelForImageTextToText as _Auto
+        except ImportError:
+            from transformers import AutoModelForCausalLM as _Auto
+        self.processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+        self.model = _Auto.from_pretrained(
+            model_path, trust_remote_code=True, torch_dtype=torch.bfloat16,
+        )
+        self.model.eval()
+        self._device = device
+        self._on_gpu = False
+        print(f"[Captioner] Loaded in {time.time() - t0:.1f}s (on CPU)")
+
+    def onload(self):
+        if not self._on_gpu:
+            self.model.to(self._device)
+            self._on_gpu = True
+            print(f"[Captioner] Onloaded to {self._device}")
+
+    def offload(self):
+        if self._on_gpu:
+            self.model.to("cpu")
+            torch.cuda.empty_cache()
+            self._on_gpu = False
+            print("[Captioner] Offloaded to CPU")
+
+    def caption(self, image_path: str) -> str:
+        self.onload()
+        from PIL import Image
+        pil = Image.open(image_path).convert("RGB")
+        msgs = [
+            {"role": "system", "content": [{"type": "text", "text": self.SYSTEM_PROMPT}]},
+            {"role": "user", "content": [
+                {"type": "image", "image": pil},
+                {"type": "text", "text": self.USER_INSTRUCTION},
+            ]},
+        ]
+        text = self.processor.apply_chat_template(
+            msgs, tokenize=False, add_generation_prompt=True,
+        )
+        inputs = self.processor(text=[text], images=[pil], return_tensors="pt").to(self._device)
+        print(f"[Captioner] IN  image: {image_path}", flush=True)
         t0 = time.time()
         with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs, max_new_tokens=2048,
-                temperature=0.3, top_p=0.75, top_k=20,
-                do_sample=True, repetition_penalty=1.05,
+            out = self.model.generate(
+                **inputs, max_new_tokens=256,
+                do_sample=True, temperature=0.3, top_p=0.9,
             )
-        new_tokens = outputs[0][inputs["input_ids"].shape[1]:]
-        result = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
-        if "</think>" in result:
-            result = result.split("</think>", 1)[-1].strip()
+        new_tokens = out[0][inputs["input_ids"].shape[1]:]
+        result = self.processor.decode(new_tokens, skip_special_tokens=True).strip()
         elapsed = time.time() - t0
-        print(f"[Rewriter] Done in {elapsed:.1f}s ({len(new_tokens)} tokens)")
+        print(f"[Captioner] Done in {elapsed:.1f}s ({len(new_tokens)} tokens)", flush=True)
+        print(f"[Captioner] OUT ({len(result)} chars): {result}", flush=True)
         self.offload()
         return result
+
+
+def _compose_t2av_prompt(scene_caption: str, user_prompt: str) -> str:
+    """Glue VL scene caption + user prompt for the rewriter.
+    Caption first, user prompt last so any <S>...<E> stays at the tail.
+    Mirrors comfyui_nava/nodes.py NAVAPromptCompose single_speaker mode."""
+    cap = (scene_caption or "").strip()
+    spk = (user_prompt or "").strip()
+    if not cap:
+        return spk
+    if not spk:
+        return cap
+    return f"{cap} {spk}"
 
 # -----------------------------
 # 分布式工具函数
@@ -348,8 +498,15 @@ def main():
                              "所有 rank 处理相同样本，仅 rank0 落盘。")
     parser.add_argument("--rewrite", action="store_true", default=False,
                         help="启用 prompt rewriter（默认关闭）")
-    parser.add_argument("--rewrite_model", type=str, default="Qwen/Qwen3-30B-A3B-Instruct-2507-FP8",
-                        help="Rewriter 模型路径")
+    parser.add_argument("--rewrite_model", type=str,
+                        default=os.path.join(_PE_SRC, "Qwen3-4B-Instruct-2507"),
+                        help="Rewriter 模型路径（默认 pe_src/Qwen3-4B-Instruct-2507）")
+    parser.add_argument("--vl_rewrite", action="store_true", default=False,
+                        help="对带 image_path 的样本：先用 VL 模型对图像打 caption → 与原 prompt compose → 再 rewrite。"
+                             "需要同时开启 --rewrite。无 image_path 的样本退化为普通 rewrite。")
+    parser.add_argument("--vl_model", type=str,
+                        default=os.path.join(_PE_SRC, "Qwen3-VL-4B-Instruct"),
+                        help="VL caption 模型路径（默认 pe_src/Qwen3-VL-4B-Instruct）")
     parser.add_argument("--t5_offload", action="store_true",
                         help="T5 文本编码完成后移回 CPU，释放显存供 DiT 使用")
     parser.add_argument("--group_offload", action="store_true",
@@ -370,17 +527,24 @@ def main():
 
     args = parser.parse_args()
     use_rewrite = args.rewrite
+    use_vl_rewrite = args.vl_rewrite
+    if use_vl_rewrite and not use_rewrite:
+        raise ValueError("--vl_rewrite 必须配合 --rewrite 使用")
 
     # --- Setup ---
     is_ddp, rank, world_size, local_rank = setup_dist()
     device = torch.device(f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu")
 
-    # --- Rewriter (rank 0 only) ---
+    # --- Rewriter / Captioner (rank 0 持有模型；其他 rank 通过 broadcast 接收改写结果) ---
     rewriter = None
+    captioner = None
     if use_rewrite and (not is_ddp or rank == 0):
         rewriter = PromptRewriter(model_path=args.rewrite_model, device=f"cuda:{local_rank}")
         print(f"[Rewriter] Enabled. Model: {args.rewrite_model}")
-    elif not use_rewrite:
+        if use_vl_rewrite:
+            captioner = ImageCaptioner(model_path=args.vl_model, device=f"cuda:{local_rank}")
+            print(f"[Captioner] Enabled. Model: {args.vl_model}")
+    elif not use_rewrite and (not is_ddp or rank == 0):
         print("[Rewriter] Disabled (pass --rewrite to enable)")
 
     # --- Sequence parallel ---
@@ -643,14 +807,65 @@ def main():
                 continue
 
             if True:
-                # --- Prompt Rewrite ---
-                if rewriter is not None:
+                # --- Prompt Rewrite (rank0 改写 + broadcast 到所有 rank) ---
+                # SP 模式所有 rank 共用同一条样本，T5 latent 必须跨 rank 一致；
+                # 单卡 / 非 SP DDP 也保持同一通路（rank0-only + broadcast），
+                # 行为对齐 pe_src/gradio_server.py。
+                #
+                # 关键：rank0 跑 rewriter.generate(do_sample=True) 会消耗 rank0
+                # 的 CPU/CUDA RNG state（每条 caption ~1000+ token 的 multinomial
+                # 采样），rank1-7 在 _broadcast_string 上阻塞、RNG 完全没动。
+                # 紧接着 pipe.sample 里的 torch.randn 会让初始 noise 跨 rank
+                # 不一致 → SP all-gather 拼出脏 latent → 第一帧之外全糊。
+                # 解决：rank0 在 rewrite 前 snapshot RNG，rewrite 完恢复，
+                # 让 rewrite 对外完全无副作用，跨 rank RNG 维持同步。
+                if use_rewrite:
                     captions = batch.get("captions", None)
                     if captions is not None:
-                        if isinstance(captions, list):
-                            batch["captions"] = [rewriter.rewrite(c) for c in captions]
-                        elif isinstance(captions, str):
-                            batch["captions"] = rewriter.rewrite(captions)
+                        is_str_input = isinstance(captions, str)
+                        caps_list = [captions] if is_str_input else list(captions)
+                        # Per-sample image_path comes through the dataset (None when no i2v).
+                        # collate_fn passes a list[str|None] for non-tensor heterogeneous keys.
+                        img_paths = batch.get("image_path", None)
+                        if img_paths is None:
+                            img_paths_list = [None] * len(caps_list)
+                        elif isinstance(img_paths, str):
+                            img_paths_list = [img_paths]
+                        else:
+                            img_paths_list = list(img_paths)
+                        for i in range(len(caps_list)):
+                            if rank == 0 and rewriter is not None:
+                                # Dataset injects <extra_id_2> right after every <S> as a
+                                # T5 speech-segment sentinel (see t2v.py:391). The rewriter
+                                # doesn't know about that token — strip it before rewrite,
+                                # re-inject after, so the rewritten prompt carries the
+                                # sentinel exactly where its (possibly rewritten) <S> tags
+                                # land.
+                                cap_in = caps_list[i].replace("<extra_id_2>", "")
+                                _cpu_rng = torch.get_rng_state()
+                                _cuda_rng = torch.cuda.get_rng_state(device)
+                                # Optional VL caption + compose: only fires when --vl_rewrite
+                                # is on AND this sample has an image_path. The composed
+                                # prompt feeds the rewriter; samples without image_path fall
+                                # through to plain rewrite.
+                                if captioner is not None and img_paths_list[i]:
+                                    scene = captioner.caption(img_paths_list[i])
+                                    cap_in = _compose_t2av_prompt(scene, cap_in)
+                                    print(f"[Compose] OUT ({len(cap_in)} chars): {cap_in}", flush=True)
+                                # Rewriter sometimes drops/dups <S>...<E>; gate on the input
+                                # pair count and let rewrite() retry until they match.
+                                expected_pairs = _count_se_pairs(cap_in)
+                                cap_out = rewriter.rewrite(
+                                    cap_in, expected_se_pairs=expected_pairs,
+                                )
+                                torch.set_rng_state(_cpu_rng)
+                                torch.cuda.set_rng_state(_cuda_rng, device)
+                                caps_list[i] = cap_out.replace("<S>", "<S><extra_id_2>")
+                            if is_ddp:
+                                caps_list[i] = _broadcast_string(
+                                    caps_list[i] if rank == 0 else "", src=0,
+                                )
+                        batch["captions"] = caps_list[0] if is_str_input else caps_list
 
                 # Per-sample is_i2v from batch (unified json), fallback to global args.is_i2v
                 sample_is_i2v = batch.get("is_i2v", is_i2v)
