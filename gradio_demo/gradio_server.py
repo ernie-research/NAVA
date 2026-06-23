@@ -147,9 +147,15 @@ class PromptRewriter:
         import re
         return len(re.findall(r"<S>.*?<E>", text, re.DOTALL))
 
-    def rewrite(self, user_input: str) -> tuple:
-        """Rewrite prompt. Returns (result, warning) tuple."""
-        # Ensure model is on GPU before generating
+    def rewrite(self, user_input: str, max_retries: int = 5) -> tuple:
+        """Rewrite prompt with automatic retry on <S><E> pair-count mismatch.
+
+        Qwen3 occasionally drops or duplicates speech tags despite the
+        SYSTEM_PROMPT spelling out "preserve speech verbatim". Each retry
+        re-samples (do_sample=True advances cuda RNG, so attempts diverge).
+        On persistent mismatch we return the last attempt with a warning —
+        a single bad rewrite shouldn't block the user.
+        Returns (result, warning) tuple."""
         self.reload()
 
         messages = [
@@ -160,37 +166,130 @@ class PromptRewriter:
             messages, tokenize=False, add_generation_prompt=True,
         )
         inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
-
-        print(f"[Rewriter] Generating (input tokens: {inputs['input_ids'].shape[1]})...")
-        t0 = time.time()
-
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=4096,
-                temperature=0.3,
-                top_p=0.75,
-                top_k=20,
-                do_sample=True,
-                repetition_penalty=1.05,
-            )
-
-        new_tokens = outputs[0][inputs["input_ids"].shape[1]:]
-        raw = self.tokenizer.decode(new_tokens, skip_special_tokens=True)
-        result = self._extract_rewrite(raw)
-
-        elapsed = time.time() - t0
-        print(f"[Rewriter] Done in {elapsed:.1f}s ({len(new_tokens)} tokens)")
-
-        # Check <S><E> pair count
         input_count = self._count_speech_tags(user_input)
-        output_count = self._count_speech_tags(result)
-        warning = ""
-        if input_count > 0 and output_count != input_count:
-            warning = f"⚠️ Speech 标签数量不匹配！输入有 {input_count} 对 <S><E>，输出有 {output_count} 对。请重新点击 Rewrite。"
-            print(f"[Rewriter] WARNING: {warning}")
+        print(f"[Rewriter] target <S><E> pairs: {input_count}")
 
-        return result, warning
+        last_result = ""
+        last_count = -1
+        for attempt in range(max_retries):
+            print(f"[Rewriter] Generating attempt {attempt+1}/{max_retries} "
+                  f"(input tokens: {inputs['input_ids'].shape[1]})...")
+            t0 = time.time()
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=4096,
+                    temperature=0.3,
+                    top_p=0.75,
+                    top_k=20,
+                    do_sample=True,
+                    repetition_penalty=1.05,
+                )
+            new_tokens = outputs[0][inputs["input_ids"].shape[1]:]
+            raw = self.tokenizer.decode(new_tokens, skip_special_tokens=True)
+            result = self._extract_rewrite(raw)
+            output_count = self._count_speech_tags(result)
+            elapsed = time.time() - t0
+            print(f"[Rewriter] Done in {elapsed:.1f}s "
+                  f"({len(new_tokens)} tokens, <S><E>={output_count})")
+            last_result = result
+            last_count = output_count
+            # Skip-check path: input has no speech tags → no constraint to satisfy.
+            if input_count == 0 or output_count == input_count:
+                return result, ""
+            print(f"[Rewriter] <S><E> mismatch: got {output_count}, want "
+                  f"{input_count} — retrying")
+
+        warning = (f"⚠️ Speech 标签数量不匹配（已自动重试 {max_retries} 次）！"
+                   f"输入有 {input_count} 对 <S><E>，输出有 {last_count} 对。请重新点击 Rewrite。")
+        print(f"[Rewriter] WARNING: {warning}")
+        return last_result, warning
+
+
+# ============================================================
+# Image Captioner (rank 0 only) — Qwen3-VL describes the uploaded image
+# so its scene description can be composed with the user's text prompt
+# before rewrite. SYSTEM_PROMPT mirrors comfyui_nava/captioner.py and
+# inference_nava.ImageCaptioner verbatim.
+# ============================================================
+class ImageCaptioner:
+    SYSTEM_PROMPT = (
+        "你是一个视频生成提示词助手。用一段流畅的中文描述图片中的场景：人物外貌、"
+        "动作、服装、背景环境、光线与色调、整体氛围。不要使用markdown格式、不要分条列举、"
+        "不要说\"这张图\"或\"这是一张图片\"，直接描述画面内容，像在描述一段正在发生的"
+        "视频场景。输出一段话，不超过150字。"
+    )
+    USER_INSTRUCTION = "请描述这张图片的视频场景。"
+
+    def __init__(self, model_path: str):
+        print(f"[Captioner] Loading {model_path} to CPU...")
+        t0 = time.time()
+        from transformers import AutoProcessor
+        try:
+            from transformers import AutoModelForImageTextToText as _Auto
+        except ImportError:
+            from transformers import AutoModelForCausalLM as _Auto
+        self.processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+        self.model = _Auto.from_pretrained(
+            model_path, trust_remote_code=True, torch_dtype=torch.bfloat16,
+        )
+        self.model.eval()
+        self._on_gpu = False
+        print(f"[Captioner] Loaded in {time.time() - t0:.1f}s (on CPU)")
+
+    def offload(self):
+        if self._on_gpu:
+            self.model.to("cpu")
+            torch.cuda.empty_cache()
+            self._on_gpu = False
+            print("[Captioner] Offloaded to CPU")
+
+    def reload(self):
+        if not self._on_gpu:
+            self.model.to("cuda:0")
+            self._on_gpu = True
+            print("[Captioner] Reloaded to cuda:0")
+
+    @torch.no_grad()
+    def caption(self, image_path: str) -> str:
+        self.reload()
+        from PIL import Image
+        pil = Image.open(image_path).convert("RGB")
+        msgs = [
+            {"role": "system", "content": [{"type": "text", "text": self.SYSTEM_PROMPT}]},
+            {"role": "user", "content": [
+                {"type": "image", "image": pil},
+                {"type": "text", "text": self.USER_INSTRUCTION},
+            ]},
+        ]
+        text = self.processor.apply_chat_template(
+            msgs, tokenize=False, add_generation_prompt=True,
+        )
+        inputs = self.processor(text=[text], images=[pil], return_tensors="pt").to(self.model.device)
+        print(f"[Captioner] IN  image: {image_path}")
+        t0 = time.time()
+        out = self.model.generate(
+            **inputs, max_new_tokens=256,
+            do_sample=True, temperature=0.3, top_p=0.9,
+        )
+        new_tokens = out[0][inputs["input_ids"].shape[1]:]
+        result = self.processor.decode(new_tokens, skip_special_tokens=True).strip()
+        elapsed = time.time() - t0
+        print(f"[Captioner] Done in {elapsed:.1f}s ({len(new_tokens)} tokens)")
+        print(f"[Captioner] OUT ({len(result)} chars): {result}")
+        return result
+
+
+def _compose_t2av_prompt(scene_caption: str, user_prompt: str) -> str:
+    """Glue VL scene caption + user prompt for the rewriter.
+    Caption first, user prompt last so any <S>...<E> stays at the tail."""
+    cap = (scene_caption or "").strip()
+    spk = (user_prompt or "").strip()
+    if not cap:
+        return spk
+    if not spk:
+        return cap
+    return f"{cap} {spk}"
 
 
 # ============================================================
@@ -256,16 +355,35 @@ def worker_loop(engine: NAVAEngine):
 # ============================================================
 # Gradio UI (rank 0 only)
 # ============================================================
-def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
+def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, captioner: "ImageCaptioner", args):
     import gradio as gr
 
-    def rewrite_fn(user_prompt: str):
-        """Rewrite prompt only, triggered by Rewrite button."""
+    def rewrite_fn(user_prompt: str, image_file: str):
+        """Rewrite prompt; if an image is uploaded, VL-caption it and compose
+        the scene description with the user's prompt before rewriting.
+        Returns (rewritten_with_extra_id_2, speech_warning, vl_caption).
+        """
         if not user_prompt.strip():
-            return "", ""
-        rewritten, warning = rewriter.rewrite(user_prompt)
+            return "", "", ""
+
+        # Strip stale <extra_id_2> markers so the rewriter sees clean speech tags;
+        # we'll re-inject after rewrite below.
+        cap_in = user_prompt.replace("<extra_id_2>", "")
+
+        scene_caption = ""
+        if image_file and os.path.exists(image_file):
+            scene_caption = captioner.caption(image_file)
+            captioner.offload()  # free VRAM before rewriter onloads
+            cap_in = _compose_t2av_prompt(scene_caption, cap_in)
+            print(f"[Gradio] composed ({len(cap_in)} chars): {cap_in[:200]}...")
+
+        rewritten, warning = rewriter.rewrite(cap_in)
+        # Inject <extra_id_2> after every <S> so the user sees the final form
+        # in the textbox. nava_engine._build_batch normalizes idempotently
+        # before T5 encoding, so this is safe regardless of further user edits.
+        rewritten = rewritten.replace("<S>", "<S><extra_id_2>")
         print(f"[Gradio] Rewritten prompt:\n{rewritten[:200]}...")
-        return rewritten, warning
+        return rewritten, warning, scene_caption
 
     def infer_fn(user_prompt: str, rewritten_prompt: str, image_file: str,
                  spk_wav_1: str, spk_wav_2: str,
@@ -363,6 +481,13 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
 
                 rewrite_btn = gr.Button("Rewrite Prompt", variant="secondary")
 
+                vl_caption_box = gr.Textbox(
+                    label="VL Caption (上传图片时自动生成；纯文本时为空)",
+                    lines=3,
+                    interactive=False,
+                    visible=True,
+                )
+
                 rewritten_prompt = gr.Textbox(
                     label="Rewritten Prompt (点击 Rewrite 按钮生成，不点则使用原始输入)",
                     lines=8,
@@ -444,11 +569,38 @@ def run_gradio(engine: NAVAEngine, rewriter: PromptRewriter, args):
             outputs=[duration_input],
         )
 
+        # Auto-pick Aspect Ratio when the user uploads an image. Avoids the
+        # default-landscape-squashing-portrait failure mode; user can still
+        # change the dropdown afterwards to manually override.
+        def autodetect_aspect_ratio(image_path: str):
+            if not image_path or not os.path.exists(image_path):
+                return gr.update()
+            from PIL import Image
+            try:
+                w, h = Image.open(image_path).size
+            except Exception as e:
+                print(f"[Gradio] aspect autodetect: failed to read {image_path}: {e}")
+                return gr.update()
+            if w > h * 1.2:
+                picked = "16:9 (1280×704)"
+            elif h > w * 1.2:
+                picked = "9:16 (704×1280)"
+            else:
+                picked = "1:1 (960×960)"
+            print(f"[Gradio] aspect autodetect: image {w}x{h} → {picked}")
+            return picked
+
+        image_input.change(
+            fn=autodetect_aspect_ratio,
+            inputs=[image_input],
+            outputs=[aspect_ratio_input],
+        )
+
         # Rewrite button: only rewrites, does not generate
         rewrite_btn.click(
             fn=rewrite_fn,
-            inputs=[prompt_input],
-            outputs=[rewritten_prompt, speech_warning],
+            inputs=[prompt_input, image_input],
+            outputs=[rewritten_prompt, speech_warning, vl_caption_box],
         )
 
         # Generate button: uses rewritten prompt if available
@@ -486,12 +638,31 @@ def main():
                         help="NAVA checkpoint path")
     parser.add_argument("--rewrite_model", type=str, default="Qwen/Qwen3-30B-A3B-Instruct-2507-FP8",
                         help="Rewrite model path")
+    parser.add_argument("--vl_model", type=str, default="pe_src/Qwen3-VL-4B-Instruct",
+                        help="VL caption 模型路径；上传图片时 Rewrite 会先 caption + compose 再 rewrite。"
+                             "支持本地相对/绝对路径或 HuggingFace repo id。")
     parser.add_argument("--port", type=int, default=7860)
     parser.add_argument("--share", action="store_true",
                         help="Create public Gradio link")
     parser.add_argument("--height", type=int, default=704)
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--frames", type=int, default=37)
+    # ---- inference acceleration knobs (mirror inference_nava.py) ----
+    parser.add_argument("--weight_dtype", type=str, default="auto",
+                        choices=["auto", "bf16", "fp8_e4m3fn"],
+                        help="auto: detect from ckpt; fp8_e4m3fn: force fp8 patch; bf16: skip fp8")
+    parser.add_argument("--t5_offload", action="store_true",
+                        help="T5 文本编码完成后移回 CPU，释放显存供 DiT 使用")
+    parser.add_argument("--group_offload", action="store_true",
+                        help="DiT backbone 逐组 block CPU↔GPU offload（去噪期间节省显存）")
+    parser.add_argument("--offload_group_size", type=int, default=1,
+                        help="每次转移的 transformer block 数量（默认 1，越小越省显存但越慢）")
+    parser.add_argument("--vae_tiling", action="store_true",
+                        help="VAE decode 分块解码以降低峰值显存")
+    parser.add_argument("--vae_tile_size", type=int, nargs=2, default=[22, 40],
+                        help="VAE tile size (H W) in latent space")
+    parser.add_argument("--vae_tile_stride", type=int, nargs=2, default=[14, 26],
+                        help="VAE tile stride (H W) in latent space")
     parser.add_argument("--steps", type=int, default=50)
     parser.add_argument("--debug", action="store_true",
                         help="Debug mode: skip all model loading, only launch Gradio UI")
@@ -592,6 +763,13 @@ def main():
         height=args.height,
         width=args.width,
         frames=args.frames,
+        weight_dtype=args.weight_dtype,
+        t5_offload=args.t5_offload,
+        group_offload=args.group_offload,
+        offload_group_size=args.offload_group_size,
+        vae_tiling=args.vae_tiling,
+        vae_tile_size=tuple(args.vae_tile_size),
+        vae_tile_stride=tuple(args.vae_tile_stride),
     )
 
     # Barrier to initialize NCCL communicator while all ranks are synchronized.
@@ -599,9 +777,10 @@ def main():
     dist.barrier()
 
     if rank == 0:
-        # Rank 0: load rewriter + launch Gradio
+        # Rank 0: load rewriter + VL captioner + launch Gradio
         rewriter = PromptRewriter(model_path=args.rewrite_model)
-        run_gradio(engine, rewriter, args)
+        captioner = ImageCaptioner(model_path=args.vl_model)
+        run_gradio(engine, rewriter, captioner, args)
 
         # When Gradio exits, tell workers to stop
         broadcast_cmd(CMD_EXIT, src=0)

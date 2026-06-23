@@ -8,12 +8,16 @@
   <a href="https://ernie-research.github.io/NAVA"><img src="https://img.shields.io/badge/Project-Page-1e88e5?style=flat-square&logo=googlechrome&logoColor=white" alt="Project Page"></a>
   <a href="https://arxiv.org/abs/2605.30073"><img src="https://img.shields.io/badge/arXiv-Paper-B31B1B?style=flat-square&logo=arxiv&logoColor=white" alt="arXiv"></a>
   <a href="https://huggingface.co/baidu/NAVA"><img src="https://img.shields.io/badge/%F0%9F%A4%97_HuggingFace-Models-FFD21E?style=flat-square" alt="HuggingFace Models"></a>
+  <a href="https://huggingface.co/spaces/baidu/NAVA"><img src="https://img.shields.io/badge/%F0%9F%A4%97_HuggingFace-Space-FF9D00?style=flat-square" alt="HuggingFace Space"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-4c1?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
   ⭐ <b>If you find NAVA useful, please consider giving this repo a star — it really helps!</b> ⭐
 </p>
+
+> [!TIP]
+> 🚀 **We've put up a [HuggingFace Space](https://huggingface.co/spaces/baidu/NAVA) — try NAVA online and generate a 3–5s clip from your own prompt + image. [Give it a try!](https://huggingface.co/spaces/baidu/NAVA)**
 
 NAVA is a Native Audio-Visual Alignment framework that formulates joint audio-video generation as *context-conditioned native audio-visual alignment*. NAVA first establishes audio-video correspondence in a dedicated alignment space and then applies context as external conditioning to guide the aligned representation. It is instantiated with an Align-then-Fuse MMDiT architecture, which progressively bridges modality-aware alignment and unified audio-video denoising. To support controllable speech generation, NAVA further introduces Timbre-in-Context Conditioning, which binds reference timbre cues to corresponding speech spans through the context pathway. With only **6.3B** parameters, NAVA achieves superior audio-visual synchronization and video quality, competitive audio quality, and substantially improved reference-timbre controllability.
 
@@ -140,39 +144,36 @@ For end-to-end runs that include prompt rewriting (and optional VL image caption
 NAVA was trained on long, structured Chinese captions, so short prompts (and any I2AV input where the image carries scene info) benefit from an inline rewrite step. Two ready-to-run scripts cover the two common cases:
 
 ```bash
-# Text-only: rewrite short prompts → FP8 generate
+# Text-only T2AV — short prompts get rewritten before FP8 generation.
+# Default JSONL: infer_cases/general/prompts_simple.jsonl
 bash scripts/inference_fp8_rewrite.sh
 
-# Image + text: VL caption the image → compose with user prompt → rewrite → FP8 generate
+# I2AV — VL captions the image, the caption is composed with the user
+# prompt, then rewritten before FP8 generation. Samples without
+# image_path fall back to the plain rewrite path.
+# Default JSONL: infer_cases/general/prompts_simple_i2v.jsonl
 bash scripts/inference_fp8_vl_rewrite.sh
 ```
 
-| Script | Pipeline (per sample, rank 0) | Default JSONL | When to use |
-|---|---|---|---|
-| `inference_fp8_rewrite.sh` | `user_prompt → Rewriter → broadcast → FP8 DiT → VAE` | `infer_cases/general/prompts_simple.jsonl` | Text-only T2AV. Short / English / casual prompts that lack the structured detail NAVA expects |
-| `inference_fp8_vl_rewrite.sh` | `image → VL caption → compose(scene, user_prompt) → Rewriter → broadcast → FP8 DiT → VAE`. Samples without `image_path` fall back to the plain rewrite path | `infer_cases/general/prompts_simple_i2v.jsonl` | I2AV (first-frame image given) — the VL captioner extracts scene description from the image, which is then merged with the user's text before rewrite |
-
-Override defaults with env vars:
+Pipeline per sample (rank 0): `[image → VL caption → compose →] Rewriter → broadcast → FP8 DiT → VAE`. Override `CKPT` / `DATA_FILE` / `OUT_DIR` etc. with env vars:
 
 ```bash
-CKPT=NAVA_fp8.safetensors \
-DATA_FILE=my_prompts.jsonl \
-OUT_DIR=eval_results/run1 \
-bash scripts/inference_fp8_rewrite.sh
+CKPT=NAVA_fp8.safetensors DATA_FILE=my.jsonl OUT_DIR=eval_results/run1 \
+    bash scripts/inference_fp8_rewrite.sh
 ```
 
-**Choosing the rewriter model.** `REWRITE_MODEL` defaults to `Qwen3-4B-Instruct-2507`, but `Qwen3-4B-Thinking-2507` is also bundled and can be swapped in by overriding the env var:
+**Choosing the rewriter model.** Both `Qwen3-4B-Instruct-2507` and `Qwen3-4B-Thinking-2507` are bundled; switch via `REWRITE_MODEL`:
+
+| Model | Latency | Reliability |
+|---|---|---|
+| **Qwen3-4B-Instruct-2507** *(default)* | ~1–3 s/prompt | Occasionally malformed → triggers retry. Pick this for throughput |
+| **Qwen3-4B-Thinking-2507** | ~10–20 s/prompt (emits `<think>` tokens) | Virtually no retries. Pick this for batch / overnight runs |
 
 ```bash
 REWRITE_MODEL=pe_src/Qwen3-4B-Thinking-2507 bash scripts/inference_fp8_rewrite.sh
 ```
 
-| Model | Latency | Reliability | Notes |
-|---|---|---|---|
-| **Qwen3-4B-Instruct-2507** *(default)* | Fast (~1–3 s/prompt) | Less stable — occasionally returns malformed output and triggers the rewriter's retry path | Use when throughput matters and you can tolerate a few retries |
-| **Qwen3-4B-Thinking-2507** | Slow (~10–20 s/prompt — emits internal `<think>` tokens) | Very stable — virtually no retries needed | Use for batch / overnight runs where you want every sample to land cleanly on the first try |
-
-The VL captioner used by `inference_fp8_vl_rewrite.sh` is `VL_MODEL=pe_src/Qwen3-VL-4B-Instruct` by default; same override pattern applies.
+The VL captioner used by `inference_fp8_vl_rewrite.sh` defaults to `VL_MODEL=pe_src/Qwen3-VL-4B-Instruct`; same override pattern.
 
 **5. (Alternative) Pre-rewrite a list of prompts via vLLM** — useful for offline batches of hundreds-to-thousands of prompts:
 
