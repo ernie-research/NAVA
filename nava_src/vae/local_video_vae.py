@@ -158,7 +158,9 @@ class LocalVideoVAEAdapter:
         Encode an image (i2v first frame) or video file, or a pre-loaded tensor.
 
         Args:
-            x: local file path (str) or tensor [B, C, H, W]
+            x: local file path (str), bos://... URL, https://... URL, or tensor
+               - bos:// URLs are pre-signed in place and read remotely (ffprobe
+                 / decord both speak https), so we never write to disk.
                - video file (.mp4 etc.): encodes frame_length frames
                - image file (.jpg/.png etc.): encodes as single-frame (i2v)
             frame_length: number of frames to sample from video
@@ -167,7 +169,18 @@ class LocalVideoVAEAdapter:
             SimpleNamespace(latent_dist=SampleClass(sample=tensor))
             tensor shape [T_lat, H_lat, W_lat, z_dim] (t,h,w,c format)
         """
-        if isinstance(x, str) and os.path.splitext(x)[1].lower() in _VIDEO_EXTS:
+        # Resolve bos:// → pre-signed https:// at the entry, before any
+        # ext-check or ffprobe; local paths and existing http(s) pass through.
+        # Path-suffix detection below still works because the signed URL ends
+        # in .mp4?<query>, and os.path.splitext only cares about the final
+        # dot before any '?'.
+        from nava_src.vae._bos_signer import resolve as _resolve_bos
+        if isinstance(x, str):
+            x = _resolve_bos(x)
+        # Strip query string for extension detection only (the URL itself
+        # still flows untouched into ffprobe / decord).
+        _ext_check = x.split("?", 1)[0] if isinstance(x, str) else x
+        if isinstance(x, str) and os.path.splitext(_ext_check)[1].lower() in _VIDEO_EXTS:
             # --- video path ---
             if target_height and target_width:
                 height, width = target_height, target_width

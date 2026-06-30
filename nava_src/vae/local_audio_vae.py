@@ -176,7 +176,11 @@ class LocalAudioVAEAdapter:
 
         Args:
             x: dict with keys:
-               - "data_path": local audio file path
+               - "data_path" OR "bos_url": audio source. May be a local path,
+                 a bos:// URL (auto-signed → https), or a https:// URL.
+                 ``data_path`` is checked first for back-compat with the SFT /
+                 demo data; ``bos_url`` covers v6_multi_spk-style data sourced
+                 from BOS, matching the old dataset_av.py contract.
                - "use_spk_emb": bool
                - "start" (optional): clip start time in seconds
                - "duration" (optional): clip duration in seconds
@@ -187,8 +191,15 @@ class LocalAudioVAEAdapter:
             SimpleNamespace(latent_dist=SampleClass(sample=dict))
             sample = {"audio_latents": [tensor[C, T]], "spk_embs": tensor[1, D]}
         """
+        from nava_src.vae._bos_signer import resolve as _resolve_bos
         use_spk_emb    = x.get("use_spk_emb", False)    if isinstance(x, dict) else False
-        data_path      = x.get("data_path", "")          if isinstance(x, dict) else str(x)
+        # Accept both data_path and bos_url field names; prefer data_path for
+        # backward compatibility with existing SFT / demo data.
+        if isinstance(x, dict):
+            data_path = x.get("data_path") or x.get("bos_url") or ""
+        else:
+            data_path = str(x)
+        data_path = _resolve_bos(data_path)
         start          = x.get("start", None)             if isinstance(x, dict) else None
         duration       = x.get("duration", None)          if isinstance(x, dict) else None
         target_length  = x.get("target_length", None)     if isinstance(x, dict) else None
@@ -196,7 +207,11 @@ class LocalAudioVAEAdapter:
         spk_embs = torch.zeros((1, 192), dtype=torch.float32)
         audio_data = None
 
-        if os.path.exists(data_path):
+        # Accept both local files and remote https URLs (torchaudio's soundfile
+        # backend can stream from http URLs since 0.13). The os.path.exists
+        # guard is only meaningful for local paths; remote URLs skip it.
+        _is_remote = isinstance(data_path, str) and data_path.startswith(("http://", "https://"))
+        if _is_remote or os.path.exists(data_path):
             try:
                 wav, sr = torchaudio.load(data_path)
                 if sr != self.sample_rate:

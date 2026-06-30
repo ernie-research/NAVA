@@ -1284,7 +1284,8 @@ class AudioVideoDataset(IterableDataset):
                 
                 # encode audio
                 sample_spk_embs = []
-                data_path = sample_audio_info["data_path"]
+                # Accept either data_path (SFT/demo) or bos_url (v6_multi_spk).
+                data_path = sample_audio_info.get("data_path") or sample_audio_info.get("bos_url")
                 duration = sample_audio_info.get("duration", None)
                 is_valid = sample_audio_info.get("is_valid", is_valid)
                 if not is_valid or duration > self.max_audio_duration or duration < self.min_audio_duration:
@@ -1360,7 +1361,8 @@ class AudioVideoDataset(IterableDataset):
                 text = sample_text_info["text"]
                 is_valid = sample_text_info.get("is_valid", True)
 
-                data_path = sample_image_info["data_path"]
+                # Accept either data_path or bos_url field name.
+                data_path = sample_image_info.get("data_path") or sample_image_info.get("bos_url")
                 image_height = sample_image_info["image_height"]
                 image_width = sample_image_info["image_width"]
                 is_valid = sample_image_info.get("is_valid", is_valid)
@@ -1407,8 +1409,9 @@ class AudioVideoDataset(IterableDataset):
                 text = sample_text_info["text"]
                 # text = filter_video_descriptions(text)
                 is_valid = sample_text_info.get("is_valid", True)
-                
-                data_path = sample_video_info["data_path"]
+
+                # Accept either data_path or bos_url field name.
+                data_path = sample_video_info.get("data_path") or sample_video_info.get("bos_url")
                 video_height = sample_video_info["image_height"]
                 video_width = sample_video_info["image_width"]
                 video_duration = sample_video_info["duration"]
@@ -1479,13 +1482,14 @@ class AudioVideoDataset(IterableDataset):
                     text = text.replace("<S>", "<extra_id_0>")
                     text = text.replace("<E>", "<extra_id_1>")
 
-                data_path = sample_video_info["data_path"]
+                # Accept either data_path or bos_url field name (v6_multi_spk-style data).
+                data_path = sample_video_info.get("data_path") or sample_video_info.get("bos_url")
                 if self.split_wav_mode:
                     if "audio_info" not in obj:
                         print("audio_info not found in obj for split_wav_mode")
                         continue
                     audio_info = obj["audio_info"]
-                    audio_data_path = audio_info[s_idx]["data_path"]
+                    audio_data_path = audio_info[s_idx].get("data_path") or audio_info[s_idx].get("bos_url")
                 else:
                     audio_data_path = data_path
                 video_height = sample_video_info["image_height"]

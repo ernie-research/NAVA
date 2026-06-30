@@ -206,9 +206,18 @@ NAVA uses a **30-layer Align-then-Fuse MMDiT** backbone with flow matching:
 
 ## Evaluation
 
+To reproduce the VerseBench numbers below end-to-end on 8 GPUs:
+
+```bash
+# Prompts are already rewritten — see infer_cases/verse_bench_rewrite/set{1,2,3}.jsonl
+bash scripts/inference_fp8_verse_bench.sh
+# Outputs land at eval_results/verse_bench_fp8/set{1,2,3}/<sample>-av-0.mp4.
+# To run only one subset:  SUBSETS=set2 bash scripts/inference_fp8_verse_bench.sh
+```
+
 ### General Capability on VerseBench
 
-NAVA achieves the best AV synchronization (Sync-C / Sync-D / IB) and video quality with the smallest parameter budget.
+NAVA achieves the best AV synchronization (Sync-C / Sync-D / IB) and video quality with the smallest parameter budget. Sync-C / Sync-D / WER are reported on the single-speaker subset (set3) where lip-sync is well-defined; all other metrics are averaged across the three subsets.
 
 <p align="center">
   <img src="assets/verse-bench.png" alt="VerseBench Results" width="100%">
